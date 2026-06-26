@@ -1,0 +1,69 @@
+---
+description: 国际化工作流——先汇总 translations.json，再执行 asloc.sh
+globs: assets/translations/**,lib/l10n/**,lib/**/{view,widget}/**/*.dart,config.yaml
+alwaysApply: false
+---
+
+# 国际化（ai_localizations）
+
+## 核心流程（必须遵守）
+
+**两步顺序，不可颠倒：**
+
+1. **汇总文案**：把所有需要国际化的用户可见文本，统一写入 `assets/translations/translations.json` 的 `source_data`
+2. **执行脚本**：在项目根目录运行 `./asloc.sh`，由工具链完成 AI 翻译、ARB 同步与 Dart 代码生成
+
+```bash
+# 第一步：编辑 translations.json（见下方格式）
+# 第二步：
+./asloc.sh
+```
+
+仅重新生成 Dart（已有完整 ARB、不调 AI）：
+
+```bash
+dart run packages/ai_localizations/tools/dart/generate.dart
+```
+
+## translations.json 是唯一人工维护的文案源
+
+- 路径：`assets/translations/translations.json`
+- 结构：`source_data` 中 key → 主语言文案
+- value 语言必须与 `config.yaml` 的 `source_locale` 一致（不限于中文）
+- key 与生成代码中的 `sid` 一一对应，例如 `appstrings_home`
+
+```json
+{
+  "source_data": {
+    "appstrings_home": "首页",
+    "appstrings_welcome": "欢迎使用"
+  }
+}
+```
+
+## 页面中的用法
+
+- **禁止**在 UI 中硬编码用户可见中文/英文等字符串
+- 新增文案：先加到 `translations.json`，再跑 `./asloc.sh`，最后在代码中用 `context.l10n.app.xxx`
+
+```dart
+// ❌ Text('首页')
+// ✅ Text(context.l10n.app.home)
+```
+
+## 禁止手改的文件（工具生成）
+
+- `lib/l10n/app_localizations.dart`
+- `lib/l10n/strings/*.dart`
+- `assets/translations/app_*.arb`（由工具回写；源文案只改 `translations.json`）
+_ `custom/translations/diff.json` (由工具回写)
+
+## 配置参考
+
+| 文件 | 作用 |
+|------|------|
+| `config.yaml` | `locales`、`source_locale`、路径 |
+| `.env` | `AILOC_*` AI 配置 |
+| `custom/translations/diff.json` | AI 翻译缓存（`locale → key → 译文`） |
+
+详细接入说明：`packages/ai_localizations/README.zh-CN.md`

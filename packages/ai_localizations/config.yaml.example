@@ -1,0 +1,27 @@
+# locales 与 source_locale 须使用 BCP-47 格式（RFC 5646），连字符 `-` 分隔：
+#   zh、en、ja              仅语言（ISO 639-1）
+#   en-US、pt-BR             语言 + 地区（ISO 3166-1）
+#   zh-Hans-CN、zh-Hant-HK   语言 + 文字（ISO 15924）+ 地区
+# 禁止使用下划线（如 zh_Hant_HK）；对应 ARB 文件名为 app_{arb_locale}.arb（下划线格式，如 app_zh_Hant_HK.arb）
+locales:
+  - zh
+  - en
+  - ja
+  - ko
+# 主语言：translations.json 中 source_data 的 value 须使用该语言书写
+# 须在 locales 中；工具会将其翻译为 locales 中的其余语言
+source_locale: zh
+
+
+# 文件路径配置,源于项目根目录 /flutter_project/ 而不是 /ai_localizations 包根目录
+# ARB 文件目录
+arb_dir: assets/translations
+
+# 源 JSON 文件名
+source_json_file: assets/translations/translations.json
+
+# 自定义 i18n 输出目录
+custom_i18n_output_dir: lib/l10n
+
+# 翻译结果文件路径
+diff_file: custom/translations/diff.json

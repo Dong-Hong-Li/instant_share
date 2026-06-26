@@ -1,0 +1,135 @@
+package handler
+
+import (
+	"encoding/json"
+	"errors"
+	"fmt"
+	"net/http"
+
+	"instant_share/server/internal/config"
+	"instant_share/server/internal/model"
+	"instant_share/server/internal/service"
+	"instant_share/server/internal/util"
+)
+
+// APIHandler 面向 Flutter admin 的 HTTP 接口。
+type APIHandler struct {
+	share  *service.ShareService
+	config config.Config
+}
+
+// NewAPIHandler 创建 API 处理器。
+func NewAPIHandler(share *service.ShareService, cfg config.Config) *APIHandler {
+	return &APIHandler{share: share, config: cfg}
+}
+
+func (h *APIHandler) Health(w http.ResponseWriter, _ *http.Request) {
+	writeJSON(w, http.StatusOK, model.APIResponse{
+		OK:   true,
+		Data: map[string]string{"service": "instant-share-server"},
+	})
+}
+
+// ServerHealth admin 探测：返回 WebSocket 地址与服务可用状态。
+func (h *APIHandler) ServerHealth(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		methodNotAllowed(w)
+		return
+	}
+
+	port := h.config.Port
+	lanIP := util.PrimaryLocalIP()
+
+	writeJSON(w, http.StatusOK, model.APIResponse{
+		OK: true,
+		Data: model.ServerHealth{
+			Service:  "instant-share-server",
+			Healthy:  true,
+			Port:     port,
+			LANIP:    lanIP,
+			HTTPBase: fmt.Sprintf("http://127.0.0.1:%d", port),
+			WSURL:    fmt.Sprintf("ws://127.0.0.1:%d/ws", port),
+			ShareURL: fmt.Sprintf("http://%s:%d/share", lanIP, port),
+			Share:    h.share.Status(),
+		},
+	})
+}
+
+func (h *APIHandler) Status(w http.ResponseWriter, _ *http.Request) {
+	writeJSON(w, http.StatusOK, model.APIResponse{
+		OK:   true,
+		Data: h.share.Status(),
+	})
+}
+
+func (h *APIHandler) StartShare(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		methodNotAllowed(w)
+		return
+	}
+
+	var req model.StartShareRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+
+	status, err := h.share.Start(req)
+	if err != nil {
+		writeShareError(w, err)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, model.APIResponse{
+		OK:   true,
+		Data: status,
+	})
+}
+
+func (h *APIHandler) StopShare(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		methodNotAllowed(w)
+		return
+	}
+
+	status, err := h.share.Stop()
+	if err != nil {
+		writeShareError(w, err)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, model.APIResponse{
+		OK:   true,
+		Data: status,
+	})
+}
+
+func writeShareError(w http.ResponseWriter, err error) {
+	switch {
+	case errors.Is(err, service.ErrShareActive):
+		writeError(w, http.StatusConflict, err.Error())
+	case errors.Is(err, service.ErrShareNotActive):
+		writeError(w, http.StatusConflict, err.Error())
+	case errors.Is(err, service.ErrNoFiles):
+		writeError(w, http.StatusBadRequest, err.Error())
+	default:
+		writeError(w, http.StatusBadRequest, err.Error())
+	}
+}
+
+func writeError(w http.ResponseWriter, status int, message string) {
+	writeJSON(w, status, model.APIResponse{
+		OK:      false,
+		Message: message,
+	})
+}
+
+func writeJSON(w http.ResponseWriter, status int, payload model.APIResponse) {
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.WriteHeader(status)
+	_ = json.NewEncoder(w).Encode(payload)
+}
+
+func methodNotAllowed(w http.ResponseWriter) {
+	writeError(w, http.StatusMethodNotAllowed, "method not allowed")
+}

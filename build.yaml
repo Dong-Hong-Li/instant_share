@@ -1,0 +1,7 @@
+targets:
+  $default:
+    builders:
+      fluro_router_generate|router_library:
+        generate_for:
+          include:
+            - lib/routes/router_config.dart

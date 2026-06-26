@@ -1,0 +1,50 @@
+---
+description: Dart 代码质量与常见反模式
+globs: lib/**/*.dart
+alwaysApply: false
+---
+
+# 代码质量
+
+## Import 顺序
+
+1. `dart:` SDK
+2. `package:flutter` / 第三方包
+3. `package:flutter_template/...` 项目内（按 core → feature → resource）
+
+## 命名
+
+| 类型 | 约定 | 示例 |
+|------|------|------|
+| 页面 | `XxxPage` | `InvitePage` |
+| Provider 类 | `XxxProvider` | `InviteProvider` |
+| Provider 文件 | `xxx_provide.dart` | `invite_provide.dart` |
+| 数据常量 | `k` 前缀 | `kProjectTags` |
+| 私有 State | `_XxxPageState` | |
+
+## 反模式（避免）
+
+```dart
+// ❌ 在 build 里创建 Provider / Controller
+// ❌ 硬编码 Color(0xFF071B58) 替代 colorValue.background
+// ❌ 使用 MediaQuery.of(context).size 做布局（应用 w/h/s）
+// ❌ 修改 *.g.dart / *.router.g.dart
+// ❌ 在 data 层调用 Clipboard / Navigator
+```
+
+## 正模式
+
+```dart
+// ✅ 相等性 guard 后再 notifyListeners
+if (_value == newValue) return;
+
+// ✅ 异步操作后检查 mounted（StatefulWidget 内）
+if (!mounted) return;
+
+// ✅ 子 widget 纯展示，交互通过 VoidCallback 上抛
+onFavoriteTap: () => provider.toggleFavorite(id),
+```
+
+## Lint
+
+项目使用 `flutter_lints ^6.0.0`。提交前确保无 analyze 警告；不引入未使用的 import 或 dead code。

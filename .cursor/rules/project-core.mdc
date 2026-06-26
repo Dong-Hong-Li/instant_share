@@ -1,0 +1,47 @@
+---
+description: Velthora 项目核心约定与技术栈（全局生效）
+alwaysApply: true
+---
+
+# Velthora 项目核心
+
+## 项目定位
+
+Flutter 移动端应用（Velthora），基于 `flutter_template` 模板。包名/import 前缀均为 `flutter_template`，勿混用目录名 `velthora`。
+
+## 技术栈
+
+- Flutter SDK `>=3.9.0`，Riverpod 2.x + `ChangeNotifierProvider`
+- 路由：`fluro_router_generate`（注解 + 代码生成）
+- 网络：`dio` + `net_retrofit_dio` + OpenAPI 契约生成
+- 适配：`flutter_screenutil`（设计稿 375×812）
+- 主题：`ThemeManager` + `ColorValue` 抽象（亮/暗）
+- 本地化：`ai_localizations` + `l10n/`（先改 `assets/translations/translations.json`，再 `./asloc.sh`）
+
+## 目录结构
+
+```
+lib/
+├── core/          # 基类、扩展、工具、主题控制器
+├── features/      # 按功能模块划分（home、project、invite…）
+├── routes/        # 路由配置与守卫
+├── service/       # API、Repository、网络初始化
+├── resource/      # 颜色、图片、尺寸令牌
+└── l10n/          # 国际化
+```
+
+## 通用原则
+
+- **最小改动**：只改任务相关文件，不顺手重构
+- **匹配现有风格**：新代码应像同作者所写
+- **禁止手改生成文件**：`*.g.dart`、`*.router.g.dart`、`lib/generated/**`、`lib/l10n/app_localizations.dart`、`lib/l10n/strings/**`（改 `translations.json` 后跑 `./asloc.sh`）
+- **改完验证**：`flutter analyze` 或相关 build，用输出证明可编译
+- **与用户沟通**：使用简体中文
+
+## 新增 Feature 检查清单
+
+1. `data/` 放模型与静态数据
+2. `provider/*_provide.dart` 放状态（文件名沿用 `provide` 后缀）
+3. `view/*_page.dart` 继承 `BaseStatePage`
+4. `widget/` 拆分子组件
+5. 在 `TabPage` 或路由中注册入口

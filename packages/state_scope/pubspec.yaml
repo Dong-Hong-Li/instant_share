@@ -1,0 +1,11 @@
+name: state_scope
+description: 轻量级 DI + 声明式状态管理框架（controller + builder + provider）。
+version: 1.0.0
+publish_to: 'none'
+
+environment:
+  sdk: ">=3.0.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter

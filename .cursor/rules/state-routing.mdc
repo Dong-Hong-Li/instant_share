@@ -1,0 +1,51 @@
+---
+description: 状态管理、路由与网络层约定
+globs: lib/{routes,service}/**,lib/**/provider/**
+alwaysApply: false
+---
+
+# 状态、路由与网络
+
+## Riverpod 使用
+
+- Feature 状态：`ChangeNotifierProvider` + `ref.watch` / `ref.read`
+- 页面外访问 provider：通过 `AppConsumerMixin.ref`（仅在 mount 后）
+- 全局单例/主题：`state_scope` 的 `DI.put` + `ControllerBuilder`（见 `AppThemeController`）
+- 不在 widget 内直接 `new Provider()`，统一用顶层 `final xxxProvider`
+
+## 路由
+
+```dart
+@RouterAnnotation(path: RootPath.xxx, description: '...')
+class XxxPage extends StatefulWidget { ... }
+
+// 导航
+RouteConfig.push(RootPath.xxx);
+RouteConfig.pop();
+RouteConfig.pushResult<T>(RootPath.xxx);
+```
+
+- 路由常量定义在 `routes/router.dart` / `RootPath`
+- 守卫注册于 `RouteGuards`，初始化在 `main.dart` → `_initializeApp`
+- 新增页面：加 `@RouterAnnotation` → 运行 build_runner 生成 `router_config.router.g.dart`
+
+## 网络与数据层
+
+```
+service/
+├── apis/           # Retrofit 风格 API 定义
+├── interfaces/     # 契约生成接口（*.g.dart）
+├── models/dto|vo/  # 请求/响应模型
+├── repository/     # 可选：缓存 + 业务聚合
+└── net_query/      # Dio 初始化与拦截器
+```
+
+- OpenAPI 变更：编辑 `openapi/api.yaml`，运行契约生成器（输出 `lib/generated/`）
+- Repository 仅在需要本地缓存/全局状态时添加；简单 CRUD 直接用 Interfaces
+- 网络初始化：`NetworkInitializer.initialize()` 已在启动流程注册
+
+## 代码生成命令
+
+```bash
+dart run build_runner build --delete-conflicting-outputs
+```

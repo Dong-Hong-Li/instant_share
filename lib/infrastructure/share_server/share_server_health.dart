@@ -1,0 +1,42 @@
+import 'package:instant_share/infrastructure/websocket/ws_share_models.dart';
+
+/// Go 服务健康探测结果，对应 `/api/v1/server/health`。
+class ShareServerHealthDto {
+  const ShareServerHealthDto({
+    required this.service,
+    required this.healthy,
+    required this.port,
+    required this.lanIp,
+    required this.httpBase,
+    required this.wsUrl,
+    required this.shareUrl,
+    required this.share,
+  });
+
+  final String service;
+  final bool healthy;
+  final int port;
+  final String lanIp;
+  final String httpBase;
+  final String wsUrl;
+  final String shareUrl;
+  final ShareStatusDto share;
+
+  factory ShareServerHealthDto.fromJson(Map<String, dynamic> json) {
+    final shareJson = json['share'];
+    final share = shareJson is Map<String, dynamic>
+        ? ShareStatusDto.fromJson(shareJson)
+        : const ShareStatusDto(active: false, files: []);
+
+    return ShareServerHealthDto(
+      service: json['service'] as String,
+      healthy: json['healthy'] as bool,
+      port: (json['port'] as num).toInt(),
+      lanIp: json['lan_ip'] as String,
+      httpBase: json['http_base'] as String,
+      wsUrl: json['ws_url'] as String,
+      shareUrl: json['share_url'] as String,
+      share: share,
+    );
+  }
+}

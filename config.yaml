@@ -1,0 +1,17 @@
+# locales 与 source_locale 须使用 BCP-47 格式（RFC 5646），连字符 `-` 分隔
+locales:
+  - zh-Hans-CN
+  - en-US
+  - en-GB
+  - en-IN
+  - zh-TW
+  - zh-HK
+  - ja
+  - ko
+
+source_locale: zh-Hans-CN
+
+arb_dir: assets/translations
+source_json_file: assets/translations/translations.json
+custom_i18n_output_dir: lib/l10n
+diff_file: custom/translations/diff.json

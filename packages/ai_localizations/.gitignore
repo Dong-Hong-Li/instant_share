@@ -1,0 +1,18 @@
+# Python bytecode & cache
+__pycache__/
+tools/__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Tools venv (make -f Makefile.translation venv)
+tools/.venv/
+
+/tools/config.yaml
+.env
+example/assets/translations/*.arb
+example/build/
+example/custom/
+.dart_tool
+*.lock
+.DS_Store

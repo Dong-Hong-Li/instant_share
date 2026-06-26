@@ -1,0 +1,64 @@
+---
+description: Feature 模块分层与页面结构约定
+globs: lib/features/**
+alwaysApply: false
+---
+
+# Feature 模块规范
+
+## 标准目录
+
+每个 feature 按职责拆分，参考 `home`、`project`、`invite`：
+
+```
+features/<name>/
+├── data/<name>_data.dart      # 数据类、常量、buildXxx 工厂
+├── provider/<name>_provide.dart
+├── view/<name>_page.dart      # 页面入口
+└── widget/                    # 可复用 UI 块（header、sections、card）
+```
+
+## 页面基类
+
+页面 State 继承 `BaseStatePage`，重写 `buildPage(BuildContext, WidgetRef)`：
+
+```dart
+class _XxxPageState extends BaseStatePage<XxxPage> {
+  @override
+  Widget buildPage(BuildContext context, WidgetRef ref) {
+    final provider = ref.watch(xxxProvider);
+    final c = tc;   // ColorValue
+    final img = ti; // ImageAssets（随主题切换）
+    // ...
+  }
+}
+```
+
+- 在 `buildPage` 内组装数据，传给 widget 子组件
+- Tab 子页（Home/Project/Invite）通常**不重写** `build()`，直接用 `buildPage`
+- 需要 Scaffold/AppBar 的独立页，使用基类默认 `build()` → `materialScaffoldWith`
+
+## Provider 模式
+
+```dart
+class XxxProvider extends ChangeNotifier {
+  void setXxx(String v) {
+    if (_xxx == v) return; // 相等则 early return
+    _xxx = v;
+    notifyListeners();
+  }
+}
+
+final xxxProvider = ChangeNotifierProvider<XxxProvider>((ref) => XxxProvider());
+```
+
+- 文件名用 `*_provide.dart`（项目既有约定，勿改成 `provider.dart`）
+- Provider 只管 UI 状态；静态/展示数据放 `data/`
+
+## 列表页布局
+
+Tab 内页面统一模式：
+
+- 外层 `DecoratedBox(gradient: c.pageBackgroundGradient)`
+- `CustomScrollView` + `SliverPersistentHeader(pinned: true)` 固定头部
+- 内容区用 `SliverToBoxAdapter` / `SliverList` / `SliverPadding`

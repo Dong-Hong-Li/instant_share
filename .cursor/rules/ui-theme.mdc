@@ -1,0 +1,51 @@
+---
+description: UI 组件、主题色与屏幕适配规范
+globs: lib/**/{widget,view}/**/*.dart
+alwaysApply: false
+---
+
+# UI 与主题规范
+
+## 颜色与渐变
+
+- 通过 `ColorValue colorValue` 参数向下传递，**禁止**在 widget 内硬编码主题色
+- 常用渐变见 `ColorValueGradients`（`pageBackgroundGradient`、`glassCardGradient`、`gold3dGradient`）
+- 新增语义色先扩展 `ColorValue` + `LightColor`/`DarkColor`，对齐 `resource/color/THEME_COLORS.md`
+- 半透明/边框等少量 RGBA 可局部使用，但主色必须走令牌
+
+## 尺寸与字体
+
+使用 `CommonMixin` 导出的快照 getter，**禁止**裸写 `.w` / `.h` / `.sp`：
+
+```dart
+// ✅
+padding: EdgeInsets.fromLTRB(w16, h12, w16, h12),
+borderRadius: BorderRadius.circular(s16),
+style: TextStyle(fontSize: fs14),
+
+// ❌
+padding: EdgeInsets.all(16.w),
+```
+
+- `w*` 宽度、`h*` 高度、`s*` 圆角/间距、`fs*` 字号
+- 设计稿基准 375×812，已在 `ScreenUtilInit` 初始化
+
+## Widget 约定
+
+- 展示组件用 `StatelessWidget`，通过构造函数注入数据与回调
+- 子组件命名：`<Feature><Section>`（如 `InviteStatsGrid`、`ProjectCard`）
+- 图片资源走 `ImageAssets`（`ti.xxx`），网络图用 `cached_network_image`
+- Tab 壳层用 `AppPageShell(maxContentWidth: 430)`，内含 `IndexedStack` + `BottomTabBarView`
+
+## 示例：玻璃卡片
+
+```dart
+DecoratedBox(
+  decoration: BoxDecoration(
+    gradient: colorValue.glassCardGradient,
+    borderRadius: BorderRadius.circular(s16),
+    border: Border.all(color: colorValue.primary.withValues(alpha: 0.15)),
+  ),
+  child: Padding(padding: EdgeInsets.all(w16), child: ...),
+)
+```

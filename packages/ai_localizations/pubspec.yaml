@@ -1,0 +1,14 @@
+name: ai_localizations
+description: A lightweight localization SDK for Flutter applications with ARB file support.
+version: 1.0.0
+publish_to: 'none'
+
+environment:
+  sdk: ^3.8.1
+  flutter: ">=3.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  path: ^1.9.0
+  yaml: ^3.1.2
