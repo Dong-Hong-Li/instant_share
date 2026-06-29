@@ -74,5 +74,3 @@ flutter:
   generate: false
   assets:
     - assets/translations/
-    - assets/bin/instant-share-server
-    - assets/lib/libinstantshare.dylib

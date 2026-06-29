@@ -38,7 +38,8 @@ func (h *APIHandler) ServerHealth(w http.ResponseWriter, r *http.Request) {
 	}
 
 	port := h.config.Port
-	lanIP := util.PrimaryLocalIP()
+	localIPs := util.LocalIPs()
+	lanIP := localIPs[0]
 
 	writeJSON(w, http.StatusOK, model.APIResponse{
 		OK: true,
@@ -47,6 +48,7 @@ func (h *APIHandler) ServerHealth(w http.ResponseWriter, r *http.Request) {
 			Healthy:  true,
 			Port:     port,
 			LANIP:    lanIP,
+			LocalIPs: localIPs,
 			HTTPBase: fmt.Sprintf("http://127.0.0.1:%d", port),
 			WSURL:    fmt.Sprintf("ws://127.0.0.1:%d/ws", port),
 			ShareURL: fmt.Sprintf("http://%s:%d/share", lanIP, port),

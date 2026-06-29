@@ -78,10 +78,10 @@ class HomeSharePage extends StatelessWidget {
             top: topInset + h12,
             right: w24,
             child: HomeServerUrlHint(
-              httpBase: provider.serverHttpBase,
               shareUrl: provider.serverShareUrl,
+              alternateShareUrls: provider.alternateShareUrls,
               sharing: provider.isSharing,
-              onCopyTap: () => _copyServerUrl(context),
+              onCopyUrl: (url) => _copyServerUrl(context, url),
             ),
           ),
       ],
@@ -102,8 +102,8 @@ class HomeSharePage extends StatelessWidget {
     );
   }
 
-  Future<void> _copyServerUrl(BuildContext context) async {
-    final copied = await provider.copyServerShareUrl();
+  Future<void> _copyServerUrl(BuildContext context, String url) async {
+    final copied = await provider.copyShareUrlToClipboard(url);
     if (!context.mounted) return;
     _showHomeSnackBar(context, copied ? '分享地址已复制' : '暂无分享地址');
   }

@@ -329,13 +329,11 @@
 			inputFileListPaths = (
 			);
 			inputPaths = (
-				"$(PROJECT_DIR)/../assets/bin/instant-share-server",
 				"$(PROJECT_DIR)/../assets/lib/libinstantshare.dylib",
 			);
 			outputFileListPaths = (
 			);
 			outputPaths = (
-				"$(BUILT_PRODUCTS_DIR)/$(PRODUCT_NAME).app/Contents/Resources/instant-share-server",
 				"$(BUILT_PRODUCTS_DIR)/$(PRODUCT_NAME).app/Contents/Resources/libinstantshare.dylib",
 			);
 			runOnlyForDeploymentPostprocessing = 0;

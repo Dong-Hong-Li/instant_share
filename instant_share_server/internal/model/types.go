@@ -40,6 +40,7 @@ type ServerHealth struct {
 	Healthy  bool        `json:"healthy"`
 	Port     int         `json:"port"`
 	LANIP    string      `json:"lan_ip"`
+	LocalIPs []string    `json:"local_ips"`
 	HTTPBase string      `json:"http_base"`
 	WSURL    string      `json:"ws_url"`
 	ShareURL string      `json:"share_url"`

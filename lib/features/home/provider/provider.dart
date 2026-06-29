@@ -19,7 +19,6 @@ class HomeProvider extends ChangeNotifier {
     final port = EmbeddedServerRuntime.instance.port;
     if (port != null) {
       _serverPort = port;
-      _serverHttpBase = ShareServerConfig.baseUriForPort(port).toString();
     }
   }
 
@@ -35,8 +34,8 @@ class HomeProvider extends ChangeNotifier {
   bool _isSharing = false;
   String? _shareUrl;
   int? _serverPort;
-  String? _serverHttpBase;
   String? _serverShareUrl;
+  List<String> _alternateShareUrls = const [];
 
   List<HomeFileItem> get selectedFiles => List.unmodifiable(_selectedFiles);
 
@@ -59,20 +58,25 @@ class HomeProvider extends ChangeNotifier {
 
   int? get serverPort => _serverPort;
 
-  String? get serverHttpBase => _serverHttpBase;
-
   String? get serverShareUrl => _serverShareUrl;
+
+  List<String> get alternateShareUrls => _alternateShareUrls;
 
   bool get hasServerInfo =>
       _serverPort != null ||
-      (_serverHttpBase != null && _serverHttpBase!.isNotEmpty) ||
       (_serverShareUrl != null && _serverShareUrl!.isNotEmpty);
 
-  /// 复制局域网分享地址（如 http://192.168.x.x:port/share）。
+  /// 复制局域网分享地址（主地址）。
   Future<bool> copyServerShareUrl() async {
     final url = _serverShareUrl;
     if (url == null || url.isEmpty) return false;
-    await Clipboard.setData(ClipboardData(text: url));
+    return copyShareUrlToClipboard(url);
+  }
+
+  /// 复制指定分享地址到剪贴板。
+  Future<bool> copyShareUrlToClipboard(String url) async {
+    if (url.trim().isEmpty) return false;
+    await Clipboard.setData(ClipboardData(text: url.trim()));
     return true;
   }
 
@@ -112,8 +116,8 @@ class HomeProvider extends ChangeNotifier {
 
   void _applyServerHealth(ShareServerHealthDto health) {
     _serverPort = health.port;
-    _serverHttpBase = health.httpBase;
     _serverShareUrl = health.shareUrl;
+    _alternateShareUrls = health.alternateShareUrls;
   }
 
   /// 切换分享开关（开始 / 停止分享）。

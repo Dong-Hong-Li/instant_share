@@ -81,12 +81,6 @@ jobs:
           channel: stable
           cache: true
 
-      - name: Prepare gitignored asset placeholder
-        shell: pwsh
-        run: |
-          New-Item -ItemType Directory -Force -Path assets/bin | Out-Null
-          New-Item -ItemType File -Force -Path assets/bin/instant-share-server | Out-Null
-
       - name: Build Go c-shared library
         shell: msys2 {0}
         run: |
@@ -174,11 +168,6 @@ jobs:
           channel: stable
           cache: true
 
-      - name: Prepare gitignored asset placeholder
-        run: |
-          mkdir -p assets/bin
-          touch assets/bin/instant-share-server
-
       - name: Build Go c-shared library
         working-directory: instant_share_server
         run: ./build_lib.sh macos
@@ -263,11 +252,6 @@ jobs:
         with:
           channel: stable
           cache: true
-
-      - name: Prepare gitignored asset placeholder
-        run: |
-          mkdir -p assets/bin
-          touch assets/bin/instant-share-server
 
       - name: Build Go c-shared library
         working-directory: instant_share_server

@@ -18,16 +18,6 @@ class ShareSessionService {
     return ShareServerDiscovery(serverBaseUri: _serverBaseUri).fetchHealth();
   }
 
-  /// 应用重启后清理上次异常退出遗留的分享会话。
-  Future<bool> clearStaleSession() async {
-    final health = await fetchHealth();
-    if (!health.share.active) return false;
-
-    final client = await _ensureClient();
-    await client.stopShare();
-    return true;
-  }
-
   Future<ShareStatusDto> startShare(List<HomeFileItem> files) async {
     final client = await _ensureClient();
     return client.startShare(files.map(_toShareFile).toList());
