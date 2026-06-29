@@ -51,3 +51,5 @@ assets/lib/*.h
 /assets/bin/instant-share-server
 /assets/bin/instant-share-server.exe
 .env
+assets/lib/instantshare.dll
+assets/lib/libinstantshare.dylib
