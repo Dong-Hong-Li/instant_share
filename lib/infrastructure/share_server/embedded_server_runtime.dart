@@ -47,10 +47,7 @@ class EmbeddedServerRuntime implements ShareServerRuntime {
 
     await _bind();
 
-    // 桌面端沿用固定端口（与 Discovery 的 defaultBaseUri 对齐）。
-    // 移动端为避免端口冲突，可改传 0 由系统分配，并用返回值更新 Discovery 地址。
-    final requested = ShareServerConfig.defaultPort;
-    final port = _start!(requested);
+    final port = _start!(ShareServerConfig.systemAllocatedPort);
     if (port <= 0) {
       throw const ShareServerException(
         message: '进程内 Go 服务启动失败（StartServer 返回错误）',

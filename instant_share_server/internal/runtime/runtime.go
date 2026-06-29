@@ -26,8 +26,7 @@ type Runtime struct {
 
 // Start 监听并在后台 goroutine 中启动服务。
 //
-// 当 cfg.Port 为 0 时由系统分配空闲端口；返回的 Runtime 通过 Port() 暴露实际端口，
-// 便于移动端避免端口冲突（桌面端可继续固定 8080）。
+// 当 cfg.Port 为 0 时由系统分配空闲端口；返回的 Runtime 通过 Port() 暴露实际端口。
 func Start(cfg config.Config) (*Runtime, error) {
 	ln, err := net.Listen("tcp", cfg.Addr())
 	if err != nil {

@@ -7,12 +7,21 @@ import 'package:flutter_riverpod/legacy.dart';
 import 'package:instant_share/features/home/data/home_file_item.dart';
 import 'package:instant_share/features/home/data/home_share_mode.dart';
 import 'package:instant_share/infrastructure/file_picker_manager.dart';
+import 'package:instant_share/infrastructure/share_server/embedded_server_runtime.dart';
+import 'package:instant_share/infrastructure/share_server/share_server_config.dart';
+import 'package:instant_share/infrastructure/share_server/share_server_health.dart';
 import 'package:instant_share/infrastructure/share_server/share_session_service.dart';
 import 'package:instant_share/infrastructure/websocket/ws_share_models.dart';
 import 'package:uuid/uuid.dart';
 
 class HomeProvider extends ChangeNotifier {
-  HomeProvider(this._session);
+  HomeProvider(this._session) {
+    final port = EmbeddedServerRuntime.instance.port;
+    if (port != null) {
+      _serverPort = port;
+      _serverHttpBase = ShareServerConfig.baseUriForPort(port).toString();
+    }
+  }
 
   static const _uuid = Uuid();
 
@@ -25,6 +34,9 @@ class HomeProvider extends ChangeNotifier {
   bool _isPicking = false;
   bool _isSharing = false;
   String? _shareUrl;
+  int? _serverPort;
+  String? _serverHttpBase;
+  String? _serverShareUrl;
 
   List<HomeFileItem> get selectedFiles => List.unmodifiable(_selectedFiles);
 
@@ -44,6 +56,25 @@ class HomeProvider extends ChangeNotifier {
   bool get isSharing => _isSharing;
 
   String? get shareUrl => _shareUrl;
+
+  int? get serverPort => _serverPort;
+
+  String? get serverHttpBase => _serverHttpBase;
+
+  String? get serverShareUrl => _serverShareUrl;
+
+  bool get hasServerInfo =>
+      _serverPort != null ||
+      (_serverHttpBase != null && _serverHttpBase!.isNotEmpty) ||
+      (_serverShareUrl != null && _serverShareUrl!.isNotEmpty);
+
+  /// 复制局域网分享地址（如 http://192.168.x.x:port/share）。
+  Future<bool> copyServerShareUrl() async {
+    final url = _serverShareUrl;
+    if (url == null || url.isEmpty) return false;
+    await Clipboard.setData(ClipboardData(text: url));
+    return true;
+  }
 
   /// 复制当前分享链接到剪贴板。
   Future<bool> copyShareUrl() async {
@@ -65,15 +96,24 @@ class HomeProvider extends ChangeNotifier {
     _syncStarted = true;
 
     try {
-      final cleared = await _session.clearStaleSession();
-      if (cleared) {
+      final health = await _session.fetchHealth();
+      _applyServerHealth(health);
+
+      if (health.share.active) {
+        await _session.stopShare();
         _isSharing = false;
         _shareUrl = null;
-        notifyListeners();
       }
+      notifyListeners();
     } catch (error, stackTrace) {
       debugPrint('[HomeProvider] syncOnStartup failed: $error\n$stackTrace');
     }
+  }
+
+  void _applyServerHealth(ShareServerHealthDto health) {
+    _serverPort = health.port;
+    _serverHttpBase = health.httpBase;
+    _serverShareUrl = health.shareUrl;
   }
 
   /// 切换分享开关（开始 / 停止分享）。
@@ -230,7 +270,13 @@ class HomeProvider extends ChangeNotifier {
 }
 
 final homeProvider = ChangeNotifierProvider<HomeProvider>((ref) {
-  final provider = HomeProvider(ShareSessionService());
+  final provider = HomeProvider(
+    ShareSessionService(
+      serverBaseUri: ShareServerConfig.baseUriForPort(
+        EmbeddedServerRuntime.instance.port!,
+      ),
+    ),
+  );
   ref.onDispose(provider.dispose);
   scheduleMicrotask(provider.syncOnStartup);
   return provider;

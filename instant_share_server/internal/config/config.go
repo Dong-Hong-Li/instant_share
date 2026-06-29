@@ -17,7 +17,7 @@ type Config struct {
 
 // Load 从命令行与环境变量加载配置。
 func Load() Config {
-	defaultPort := 8080
+	defaultPort := 0
 	if v := os.Getenv("INSTANT_SHARE_PORT"); v != "" {
 		if p, err := strconv.Atoi(v); err == nil {
 			defaultPort = p

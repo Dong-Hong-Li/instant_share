@@ -16,6 +16,7 @@ import 'package:instant_share/core/shared/theme_manager.dart';
 import 'package:instant_share/infrastructure/share_server/embedded_server_runtime.dart';
 import 'package:instant_share/infrastructure/share_server/share_server_lifecycle.dart';
 import 'package:instant_share/core/utils/storage/prefs_util.dart';
+import 'package:instant_share/core/ui/widget/desktop_window_frame.dart';
 import 'package:instant_share/l10n/app_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -80,15 +81,24 @@ class MyApp extends StatelessWidget {
               supportedLocales: AppLocalizations.supportedLocales(),
               initialRoute: RootPath.home,
               onGenerateRoute: CommonContext.router.generator,
-              builder: (context, child) => MediaQuery(
-                data: MediaQuery.of(
-                  context,
-                ).copyWith(textScaler: TextScaler.noScaling),
-                child: _SystemOverlaySync(
-                  controller: controller,
-                  child: child ?? const SizedBox.shrink(),
-                ),
-              ),
+              builder: (context, child) {
+                Widget appChild = MediaQuery(
+                  data: MediaQuery.of(
+                    context,
+                  ).copyWith(textScaler: TextScaler.noScaling),
+                  child: _SystemOverlaySync(
+                    controller: controller,
+                    child: child ?? const SizedBox.shrink(),
+                  ),
+                );
+                if (DesktopWindowConfig.isDesktop) {
+                  appChild = DesktopWindowFrame(
+                    borderRadius: DesktopWindowConfig.windowBorderRadius,
+                    child: appChild,
+                  );
+                }
+                return appChild;
+              },
             );
           },
         );

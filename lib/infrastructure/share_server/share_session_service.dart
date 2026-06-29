@@ -1,5 +1,4 @@
 import 'package:instant_share/features/home/data/home_file_item.dart';
-import 'package:instant_share/infrastructure/share_server/share_server_config.dart';
 import 'package:instant_share/infrastructure/share_server/share_server_discovery.dart';
 import 'package:instant_share/infrastructure/share_server/share_server_health.dart';
 import 'package:instant_share/infrastructure/websocket/share_ws_admin_client.dart';
@@ -7,8 +6,8 @@ import 'package:instant_share/infrastructure/websocket/ws_share_models.dart';
 
 /// 管理 admin WebSocket 与分享会话启停。
 class ShareSessionService {
-  ShareSessionService({Uri? serverBaseUri})
-    : _serverBaseUri = serverBaseUri ?? ShareServerConfig.defaultBaseUri;
+  ShareSessionService({required Uri serverBaseUri})
+    : _serverBaseUri = serverBaseUri;
 
   final Uri _serverBaseUri;
   ShareWsAdminClient? _client;

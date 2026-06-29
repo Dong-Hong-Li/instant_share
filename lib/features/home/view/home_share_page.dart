@@ -1,12 +1,13 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
-import 'package:instant_share/core/config/common.dart';
+import 'package:instant_share/core/config/desktop_window_config.dart';
 import 'package:instant_share/core/ui/widget/cross_fade_switcher.dart';
 import 'package:instant_share/features/home/data/home_share_mode.dart';
 import 'package:instant_share/features/home/provider/provider.dart';
 import 'package:instant_share/features/home/widget/home_action_button.dart';
 import 'package:instant_share/features/home/widget/home_file_list.dart';
+import 'package:instant_share/features/home/widget/home_server_url_hint.dart';
 import 'package:instant_share/features/home/widget/home_share_countdown.dart';
 import 'package:instant_share/features/home/widget/home_share_link_actions.dart';
 import 'package:instant_share/features/home/widget/home_share_mode_tabs.dart';
@@ -18,6 +19,16 @@ import 'package:instant_share/resource/screen_utils/font_size.dart';
 import 'package:instant_share/resource/screen_utils/layout_dimens_h.dart';
 import 'package:instant_share/resource/screen_utils/layout_dimens_w.dart';
 import 'package:window_manager/window_manager.dart';
+
+void _showHomeSnackBar(BuildContext context, String message) {
+  ScaffoldMessenger.of(context).showSnackBar(
+    SnackBar(
+      content: Text(message),
+      behavior: SnackBarBehavior.floating,
+      duration: const Duration(seconds: 2),
+    ),
+  );
+}
 
 /// 首页 Tab：文件 / 文章分享。
 class HomeSharePage extends StatelessWidget {
@@ -32,35 +43,51 @@ class HomeSharePage extends StatelessWidget {
   final HomeProvider provider;
   final double topInset;
 
-  bool get _useHiddenTitleBar => CommonContext.isDesktop && Platform.isMacOS;
+  bool get _useMacOsTitleBarInset =>
+      DesktopWindowConfig.usesHiddenTitleBar && Platform.isMacOS;
 
   @override
   Widget build(BuildContext context) {
     final isFileMode = provider.shareMode == HomeShareMode.file;
 
-    final content = Column(
+    final content = Stack(
       children: [
-        SizedBox(height: topInset),
-        HomeShareModeTabs(
-          colorValue: colorValue,
-          sharing: provider.isSharing,
-          mode: provider.shareMode,
-          onModeChanged: provider.setShareMode,
+        Column(
+          children: [
+            SizedBox(height: topInset),
+            HomeShareModeTabs(
+              colorValue: colorValue,
+              sharing: provider.isSharing,
+              mode: provider.shareMode,
+              onModeChanged: provider.setShareMode,
+            ),
+            SizedBox(height: h20),
+            Expanded(
+              child: CrossFadeSwitcher(
+                currentIndex: isFileMode ? 0 : 1,
+                children: [
+                  _FileModeBody(colorValue: colorValue, provider: provider),
+                  _ArticlePlaceholder(colorValue: colorValue),
+                ],
+              ),
+            ),
+          ],
         ),
-        SizedBox(height: h20),
-        Expanded(
-          child: CrossFadeSwitcher(
-            currentIndex: isFileMode ? 0 : 1,
-            children: [
-              _FileModeBody(colorValue: colorValue, provider: provider),
-              _ArticlePlaceholder(colorValue: colorValue),
-            ],
+        if (isFileMode && provider.hasServerInfo)
+          Positioned(
+            top: topInset + h12,
+            right: w24,
+            child: HomeServerUrlHint(
+              httpBase: provider.serverHttpBase,
+              shareUrl: provider.serverShareUrl,
+              sharing: provider.isSharing,
+              onCopyTap: () => _copyServerUrl(context),
+            ),
           ),
-        ),
       ],
     );
 
-    if (!_useHiddenTitleBar) return content;
+    if (!_useMacOsTitleBarInset) return content;
     return Stack(
       children: [
         Positioned(
@@ -73,6 +100,12 @@ class HomeSharePage extends StatelessWidget {
         content,
       ],
     );
+  }
+
+  Future<void> _copyServerUrl(BuildContext context) async {
+    final copied = await provider.copyServerShareUrl();
+    if (!context.mounted) return;
+    _showHomeSnackBar(context, copied ? '分享地址已复制' : '暂无分享地址');
   }
 }
 
@@ -113,6 +146,7 @@ class _FileModeBody extends StatelessWidget {
           SizedBox(height: h16),
           Text(
             statusText,
+            textAlign: TextAlign.center,
             style: TextStyle(
               fontSize: f16,
               fontWeight: FontWeight.w600,
@@ -164,7 +198,7 @@ class _FileModeBody extends StatelessWidget {
   void _showQrCode(BuildContext context) {
     final url = provider.shareUrl;
     if (url == null || url.isEmpty) {
-      _showSnackBar(context, '暂无分享地址');
+      _showHomeSnackBar(context, '暂无分享地址');
       return;
     }
     showHomeShareQrDialog(context, shareUrl: url, colorValue: colorValue);
@@ -173,17 +207,7 @@ class _FileModeBody extends StatelessWidget {
   Future<void> _copyShareUrl(BuildContext context) async {
     final copied = await provider.copyShareUrl();
     if (!context.mounted) return;
-    _showSnackBar(context, copied ? '分享地址已复制' : '暂无分享地址');
-  }
-
-  void _showSnackBar(BuildContext context, String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        behavior: SnackBarBehavior.floating,
-        duration: const Duration(seconds: 2),
-      ),
-    );
+    _showHomeSnackBar(context, copied ? '分享地址已复制' : '暂无分享地址');
   }
 }
 

@@ -1,8 +1,5 @@
-import 'dart:io';
-
 import 'package:fluro_router_generate/fluro_router.dart';
 import 'package:flutter/material.dart';
-import 'package:instant_share/core/config/common.dart';
 import 'package:instant_share/core/config/desktop_window_config.dart';
 import 'package:instant_share/core/ui/base/base_state_page.dart';
 import 'package:instant_share/features/config/view/config_page.dart';
@@ -60,8 +57,6 @@ class _TabPageState extends BaseStatePage<TabPage> with WindowListener {
   @override
   bool get resizeToAvoidBottomInset => false;
 
-  bool get _useHiddenTitleBar => CommonContext.isDesktop && Platform.isMacOS;
-
   void _syncTab(HomeProvider home) {
     if (!home.isSharing && _tab == TabSidebarItem.links) {
       _tab = TabSidebarItem.home;
@@ -75,13 +70,16 @@ class _TabPageState extends BaseStatePage<TabPage> with WindowListener {
     _syncTab(home);
 
     final colorValue = tc;
-    final topInset = _useHiddenTitleBar ? h28 : h8;
+    final useCaption = DesktopWindowConfig.useWindowCaption;
+    final topInset = DesktopWindowConfig.topContentInset(
+      hasWindowCaption: useCaption,
+    );
     final visibleTabs = TabSidebarItem.visibleTabs(sharing: home.isSharing);
     if (!visibleTabs.contains(_tab)) {
       _tab = TabSidebarItem.home;
     }
 
-    return TweenAnimationBuilder<double>(
+    final page = TweenAnimationBuilder<double>(
       tween: Tween(end: home.isSharing ? 1.0 : 0.0),
       duration: const Duration(milliseconds: 450),
       curve: Curves.easeInOut,
@@ -109,6 +107,21 @@ class _TabPageState extends BaseStatePage<TabPage> with WindowListener {
           ],
         ),
       ),
+    );
+
+    if (!useCaption) return page;
+
+    return Column(
+      children: [
+        SizedBox(
+          height: kWindowCaptionHeight,
+          child: WindowCaption(
+            brightness: Brightness.light,
+            backgroundColor: Colors.transparent,
+          ),
+        ),
+        Expanded(child: page),
+      ],
     );
   }
 

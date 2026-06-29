@@ -2,7 +2,6 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:instant_share/infrastructure/share_server/share_server_config.dart';
 import 'package:instant_share/infrastructure/share_server/share_server_exception.dart';
 import 'package:instant_share/infrastructure/share_server/share_server_health.dart';
 import 'package:instant_share/infrastructure/websocket/ws_share_models.dart';
@@ -111,7 +110,7 @@ class ShareServerDiscovery {
       return ShareServerHealthDto.fromJson(data);
     }
 
-    final port = ShareServerConfig.defaultPort;
+    final port = serverBaseUri.port;
     return ShareServerHealthDto(
       service: 'instant-share-server',
       healthy: true,

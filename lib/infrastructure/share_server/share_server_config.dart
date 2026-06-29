@@ -1,8 +1,10 @@
-/// 本地 Go 分享服务默认地址（与 [instant_share_server] 默认端口一致）。
+/// 本地 Go 分享服务地址配置。
 class ShareServerConfig {
   ShareServerConfig._();
 
-  static const int defaultPort = 8080;
+  /// 传给 Go 服务表示由操作系统分配空闲端口。
+  static const int systemAllocatedPort = 0;
 
-  static final Uri defaultBaseUri = Uri.parse('http://127.0.0.1:$defaultPort');
+  static Uri baseUriForPort(int port) =>
+      Uri(scheme: 'http', host: '127.0.0.1', port: port);
 }

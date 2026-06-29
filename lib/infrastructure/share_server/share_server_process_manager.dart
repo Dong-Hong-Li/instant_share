@@ -9,20 +9,29 @@ import 'package:instant_share/infrastructure/share_server/share_server_discovery
 import 'package:instant_share/infrastructure/share_server/share_server_exception.dart';
 
 /// 由 Flutter 托管 Go 子进程：App 启动时拉起，退出时关闭。
+///
+/// 已被 [EmbeddedServerRuntime] 取代，保留供参考或回退。
 class ShareServerProcessManager {
   ShareServerProcessManager._();
 
   static final ShareServerProcessManager instance =
       ShareServerProcessManager._();
 
+  static final _listeningPortPattern = RegExp(
+    r'listening on http://127\.0\.0\.1:(\d+)',
+  );
+
   Process? _process;
   bool _managedByApp = false;
   bool _started = false;
+  int? _runtimePort;
   Future<void>? _startFuture;
 
   bool get isManagedByApp => _managedByApp;
 
   bool get isStarted => _started;
+
+  int? get port => _runtimePort;
 
   /// 确保本地 Go 服务可用：已健康则复用；否则拉起内嵌二进制。
   Future<void> ensureStarted() {
@@ -38,9 +47,6 @@ class ShareServerProcessManager {
     if (await _tryReuseExisting()) return;
 
     await _terminateStaleShareServers();
-    await _freePortIfForeignService();
-
-    if (await _tryReuseExisting()) return;
 
     final binary = await ShareServerBinaryLocator.resolve();
     if (binary == null) {
@@ -56,10 +62,15 @@ class ShareServerProcessManager {
     debugPrint('[ShareServer] 启动子进程: ${binary.path}');
     _process = await Process.start(
       binary.path,
-      ['-port', '${ShareServerConfig.defaultPort}', '-parent-pid', '$pid'],
+      [
+        '-port',
+        '${ShareServerConfig.systemAllocatedPort}',
+        '-parent-pid',
+        '$pid',
+      ],
       environment: {
         ...Platform.environment,
-        'INSTANT_SHARE_PORT': '${ShareServerConfig.defaultPort}',
+        'INSTANT_SHARE_PORT': '${ShareServerConfig.systemAllocatedPort}',
         'INSTANT_SHARE_PARENT_PID': '$pid',
       },
       mode: ProcessStartMode.normal,
@@ -68,10 +79,18 @@ class ShareServerProcessManager {
 
     _process!.stdout
         .transform(utf8.decoder)
-        .listen((line) => debugPrint('[ShareServer:stdout] $line'));
+        .transform(const LineSplitter())
+        .listen((line) {
+          debugPrint('[ShareServer:stdout] $line');
+          _tryCapturePortFromLog(line);
+        });
     _process!.stderr
         .transform(utf8.decoder)
-        .listen((line) => debugPrint('[ShareServer:stderr] $line'));
+        .transform(const LineSplitter())
+        .listen((line) {
+          debugPrint('[ShareServer:stderr] $line');
+          _tryCapturePortFromLog(line);
+        });
     unawaited(
       _process!.exitCode.then((code) {
         if (_process != null) {
@@ -79,6 +98,7 @@ class ShareServerProcessManager {
         }
         _process = null;
         _managedByApp = false;
+        _runtimePort = null;
         if (code != 0) {
           _started = false;
         }
@@ -97,6 +117,7 @@ class ShareServerProcessManager {
     await _stopManagedProcess();
     await _terminateStaleShareServers();
     _started = false;
+    _runtimePort = null;
   }
 
   Future<void> _stopManagedProcess() async {
@@ -117,9 +138,11 @@ class ShareServerProcessManager {
 
     _process = null;
     _managedByApp = false;
+    _runtimePort = null;
   }
 
   Future<bool> _tryReuseExisting() async {
+    if (_runtimePort == null) return false;
     if (!await _probe()) return false;
     _started = true;
     _managedByApp = false;
@@ -128,12 +151,23 @@ class ShareServerProcessManager {
   }
 
   Future<bool> _probe() async {
+    final port = _runtimePort;
+    if (port == null) return false;
     try {
       return await ShareServerDiscovery(
-        serverBaseUri: ShareServerConfig.defaultBaseUri,
+        serverBaseUri: ShareServerConfig.baseUriForPort(port),
       ).probe(timeout: const Duration(seconds: 2));
     } catch (_) {
       return false;
+    }
+  }
+
+  void _tryCapturePortFromLog(String line) {
+    final match = _listeningPortPattern.firstMatch(line);
+    if (match == null) return;
+    final port = int.tryParse(match.group(1)!);
+    if (port != null && port > 0) {
+      _runtimePort = port;
     }
   }
 
@@ -152,30 +186,6 @@ class ShareServerProcessManager {
       } catch (_) {}
     }
 
-    await Future.delayed(const Duration(milliseconds: 400));
-  }
-
-  /// 8080 被非 Instant Share 占用时释放（仅 Debug）。
-  Future<void> _freePortIfForeignService() async {
-    if (!kDebugMode || Platform.isWindows) return;
-    if (await _probe()) return;
-
-    final result = await Process.run('lsof', [
-      '-ti',
-      'tcp:${ShareServerConfig.defaultPort}',
-    ]);
-    if (result.exitCode != 0) return;
-
-    debugPrint(
-      '[ShareServer] 端口 ${ShareServerConfig.defaultPort} 被占用且探活失败，尝试释放',
-    );
-    for (final line in result.stdout.toString().trim().split('\n')) {
-      final pid = int.tryParse(line.trim());
-      if (pid == null || pid == _process?.pid) continue;
-      try {
-        Process.killPid(pid, ProcessSignal.sigterm);
-      } catch (_) {}
-    }
     await Future.delayed(const Duration(milliseconds: 400));
   }
 
