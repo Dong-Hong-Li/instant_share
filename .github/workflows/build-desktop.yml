@@ -64,14 +64,20 @@ jobs:
           go-version: "1.25.x"
           cache-dependency-path: instant_share_server/go.sum
 
-      - name: Install MinGW (Go CGO)
-        run: choco install mingw -y --no-progress
+      - name: Setup MSYS2 MinGW (Go CGO)
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          update: true
+          install: mingw-w64-x86_64-gcc
 
       - name: Add MinGW to PATH
         shell: pwsh
         run: |
-          $mingwBin = "C:\ProgramData\chocolatey\lib\mingw\tools\install\mingw64\bin"
-          if (-not (Test-Path $mingwBin)) { throw "MinGW bin not found at $mingwBin" }
+          $mingwBin = "C:\msys64\mingw64\bin"
+          if (-not (Test-Path (Join-Path $mingwBin "gcc.exe"))) {
+            throw "gcc not found at $mingwBin"
+          }
           Add-Content -Path $env:GITHUB_PATH -Value $mingwBin
 
       - name: Setup Flutter
@@ -85,6 +91,9 @@ jobs:
         run: |
           New-Item -ItemType Directory -Force -Path assets/bin | Out-Null
           New-Item -ItemType File -Force -Path assets/bin/instant-share-server | Out-Null
+
+      - name: Verify Go CGO toolchain
+        run: gcc --version
 
       - name: Build Go c-shared library
         working-directory: instant_share_server
