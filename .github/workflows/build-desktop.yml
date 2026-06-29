@@ -69,16 +69,8 @@ jobs:
         with:
           msystem: MINGW64
           update: true
-          install: mingw-w64-x86_64-gcc
-
-      - name: Add MinGW to PATH
-        shell: pwsh
-        run: |
-          $mingwBin = "C:\msys64\mingw64\bin"
-          if (-not (Test-Path (Join-Path $mingwBin "gcc.exe"))) {
-            throw "gcc not found at $mingwBin"
-          }
-          Add-Content -Path $env:GITHUB_PATH -Value $mingwBin
+          install: mingw-w64-x86_64-toolchain
+          path-type: inherit
 
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
@@ -92,12 +84,17 @@ jobs:
           New-Item -ItemType Directory -Force -Path assets/bin | Out-Null
           New-Item -ItemType File -Force -Path assets/bin/instant-share-server | Out-Null
 
-      - name: Verify Go CGO toolchain
-        run: gcc --version
-
       - name: Build Go c-shared library
-        working-directory: instant_share_server
-        run: build_lib.bat
+        shell: msys2 {0}
+        run: |
+          gcc --version
+          go version
+          cd instant_share_server
+          export CGO_ENABLED=1
+          mkdir -p ../assets/lib
+          go build -buildmode=c-shared -o ../assets/lib/instantshare.dll ./cmd/lib
+          rm -f ../assets/lib/instantshare.h
+          test -f ../assets/lib/instantshare.dll
 
       - name: Flutter pub get
         run: flutter pub get
