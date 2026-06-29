@@ -4,7 +4,8 @@ import 'package:instant_share/core/config/desktop_window_config.dart';
 import 'package:instant_share/core/ui/base/base_state_page.dart';
 import 'package:instant_share/features/config/view/config_page.dart';
 import 'package:instant_share/features/home/provider/provider.dart';
-import 'package:instant_share/features/home/view/home_share_page.dart';
+import 'package:instant_share/features/home/view/home_article_share_page.dart';
+import 'package:instant_share/features/home/view/home_file_share_page.dart';
 import 'package:instant_share/features/link/view/link_page.dart';
 import 'package:instant_share/features/setting/view/setting_page.dart';
 import 'package:instant_share/features/tab/widget/tab_sidebar.dart';
@@ -22,7 +23,7 @@ class TabPage extends StatefulWidget {
 }
 
 class _TabPageState extends BaseStatePage<TabPage> with WindowListener {
-  TabSidebarItem _tab = TabSidebarItem.home;
+  TabSidebarItem _tab = TabSidebarItem.fileShare;
   bool _windowListenerAttached = false;
 
   @override
@@ -59,7 +60,7 @@ class _TabPageState extends BaseStatePage<TabPage> with WindowListener {
 
   void _syncTab(HomeProvider home) {
     if (!home.isSharing && _tab == TabSidebarItem.links) {
-      _tab = TabSidebarItem.home;
+      _tab = TabSidebarItem.fileShare;
     }
   }
 
@@ -76,7 +77,7 @@ class _TabPageState extends BaseStatePage<TabPage> with WindowListener {
     );
     final visibleTabs = TabSidebarItem.visibleTabs(sharing: home.isSharing);
     if (!visibleTabs.contains(_tab)) {
-      _tab = TabSidebarItem.home;
+      _tab = TabSidebarItem.fileShare;
     }
 
     final page = TweenAnimationBuilder<double>(
@@ -127,7 +128,12 @@ class _TabPageState extends BaseStatePage<TabPage> with WindowListener {
 
   Widget _buildBody(ColorValue colorValue, HomeProvider home, double topInset) {
     return switch (_tab) {
-      TabSidebarItem.home => HomeSharePage(
+      TabSidebarItem.fileShare => HomeFileSharePage(
+        colorValue: colorValue,
+        provider: home,
+        topInset: topInset,
+      ),
+      TabSidebarItem.articleShare => HomeArticleSharePage(
         colorValue: colorValue,
         provider: home,
         topInset: topInset,

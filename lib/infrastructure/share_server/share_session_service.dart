@@ -28,6 +28,25 @@ class ShareSessionService {
     return client.stopShare();
   }
 
+  Future<ShareStatusDto> syncShare(List<HomeFileItem> files) async {
+    final client = await _ensureClient();
+    return client.syncShare(files.map(_toShareFile).toList());
+  }
+
+  Future<ShareStatusDto> syncArticle({
+    required String? id,
+    required String title,
+    required String content,
+  }) async {
+    final client = await _ensureClient();
+    if (id == null) {
+      return client.syncArticle(null);
+    }
+    return client.syncArticle(
+      ShareArticleDto(id: id, title: title, content: content),
+    );
+  }
+
   Future<void> disconnect() async {
     await _client?.disconnect();
     _client = null;

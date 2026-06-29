@@ -7,7 +7,7 @@ import 'package:instant_share/resource/screen_utils/layout_dimens_h.dart';
 import 'package:instant_share/resource/screen_utils/layout_dimens_s.dart';
 import 'package:instant_share/resource/screen_utils/layout_dimens_w.dart';
 
-/// 顶部分享类型切换（参考 VPN 客户端的「智能分流 / 全局代理」胶囊，带滑块动画）。
+/// 顶部分享类型切换（带滑块动画）。
 class HomeShareModeTabs extends StatelessWidget {
   const HomeShareModeTabs({
     super.key,

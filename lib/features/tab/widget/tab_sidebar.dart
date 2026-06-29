@@ -8,7 +8,8 @@ import 'package:instant_share/resource/screen_utils/layout_dimens_w.dart';
 
 /// 左侧导航 Tab。
 enum TabSidebarItem {
-  home('首页', Icons.dashboard_outlined),
+  fileShare('分享文件', Icons.insert_drive_file_outlined),
+  articleShare('分享文章', Icons.auto_awesome_outlined),
   settings('设置', Icons.settings_outlined),
   config('配置', Icons.tune_outlined),
   links('链接', Icons.link_outlined);
@@ -20,7 +21,7 @@ enum TabSidebarItem {
 
   /// [sharing] 为 true 时额外展示「链接」。
   static List<TabSidebarItem> visibleTabs({required bool sharing}) {
-    return [home, settings, config, if (sharing) links];
+    return [fileShare, articleShare, settings, config, if (sharing) links];
   }
 }
 

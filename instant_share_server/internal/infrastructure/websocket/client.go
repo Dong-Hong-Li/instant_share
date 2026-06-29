@@ -31,8 +31,9 @@ type Client struct {
 	mu       sync.RWMutex
 	handlers map[string]MessageHandler
 
-	onConnect    func(role, uid, deviceID string)
-	onDisconnect func(role, uid, deviceID string)
+	onConnect       func(role, uid, deviceID string)
+	onDisconnect    func(role, uid, deviceID string)
+	onViewerConnect func(*Connection)
 }
 
 // NewClient 创建 WebSocket 服务。
@@ -60,6 +61,11 @@ func handlePing(_ context.Context, conn *Connection, _ []byte, packet Packet) er
 func (c *Client) SetConnectionHooks(onConnect, onDisconnect func(role, uid, deviceID string)) {
 	c.onConnect = onConnect
 	c.onDisconnect = onDisconnect
+}
+
+// SetViewerConnectHook 接收者连接鉴权成功后回调（用于推送当前分享状态）。
+func (c *Client) SetViewerConnectHook(fn func(*Connection)) {
+	c.onViewerConnect = fn
 }
 
 // RegisterHandler 注册消息处理器。
@@ -118,6 +124,10 @@ func (c *Client) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if role == RoleViewer && c.onViewerConnect != nil {
+		c.onViewerConnect(conn)
+	}
+
 	log.Printf("[ws] connected role=%s uid=%s device=%s", role, uid, authReq.DeviceID)
 	c.readLoop(r.Context(), conn)
 }
@@ -136,6 +146,10 @@ func (c *Client) SendToDevice(uid, deviceID string, packet any) error {
 
 func (c *Client) ConnectionCount() int {
 	return c.manager.Count()
+}
+
+func (c *Client) BroadcastToRole(role string, packet any) {
+	c.manager.BroadcastByRole(role, packet)
 }
 
 func (c *Client) Close() error {
@@ -240,17 +254,21 @@ func (c *Client) dispatch(ctx context.Context, conn *Connection, payload []byte)
 	}
 }
 
-// DefaultAuth 默认鉴权：仅允许 admin 连接 WebSocket。
+// DefaultAuth 默认鉴权：admin 控制分享，viewer 订阅分享状态。
 func DefaultAuth(_ context.Context, req AuthRequest) (string, string, error) {
 	role := strings.TrimSpace(req.Role)
 	deviceID := strings.TrimSpace(req.DeviceID)
 
-	if role != RoleAdmin {
-		return "", "", errors.New("role must be admin; receiver uses http /share")
-	}
 	if deviceID == "" {
 		return "", "", errors.New("device_id required")
 	}
 
-	return role, RoleAdmin, nil
+	switch role {
+	case RoleAdmin:
+		return role, RoleAdmin, nil
+	case RoleViewer:
+		return role, deviceID, nil
+	default:
+		return "", "", errors.New("role must be admin or viewer")
+	}
 }

@@ -12,6 +12,9 @@ set -e
 
 cd "$(dirname "$0")"
 
+echo "[build_lib] building web frontend ..."
+./build_web.sh
+
 if [ -n "${1:-}" ]; then
   PLATFORM="$1"
 else

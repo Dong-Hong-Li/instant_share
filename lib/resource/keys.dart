@@ -2,4 +2,8 @@
 class AppKeys {
   static const String agreeUserAgreementAndPrivacyPolicy =
       'agreeUserAgreementAndPrivacyPolicy';
+
+  static const String homeArticles = 'homeArticles';
+
+  static const String homeLastSharedArticleId = 'homeLastSharedArticleId';
 }

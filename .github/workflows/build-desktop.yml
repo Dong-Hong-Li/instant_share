@@ -81,6 +81,15 @@ jobs:
           channel: stable
           cache: true
 
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Build web frontend
+        working-directory: instant_share_server
+        run: ./build_web.sh
+
       - name: Build Go c-shared library
         shell: msys2 {0}
         run: |

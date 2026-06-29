@@ -70,6 +70,22 @@ class ShareWsAdminClient {
     return _parseShareStatus(response, WsFrameType.shareStopAck);
   }
 
+  Future<ShareStatusDto> syncShare(List<ShareFileDto> files) async {
+    final response = await _client.request(
+      WsFrameType.shareSync,
+      data: StartShareRequestDto(files: files).toJson(),
+    );
+    return _parseShareStatus(response, WsFrameType.shareSyncAck);
+  }
+
+  Future<ShareStatusDto> syncArticle(ShareArticleDto? article) async {
+    final response = await _client.request(
+      WsFrameType.shareArticleSync,
+      data: SyncArticleRequestDto(article: article).toJson(),
+    );
+    return _parseShareStatus(response, WsFrameType.shareArticleSyncAck);
+  }
+
   Future<void> ping({String? requestId}) async {
     final response = await _client.request(
       WsFrameType.ping,

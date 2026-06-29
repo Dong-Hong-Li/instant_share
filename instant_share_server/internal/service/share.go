@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"strings"
 	"sync"
 	"time"
 
@@ -57,9 +58,6 @@ func (s *ShareService) Start(req model.StartShareRequest) (model.ShareStatus, er
 	if s.status.Active {
 		return s.status, ErrShareActive
 	}
-	if len(req.Files) == 0 {
-		return s.status, ErrNoFiles
-	}
 
 	files, err := normalizeFiles(req.Files)
 	if err != nil {
@@ -85,6 +83,56 @@ func (s *ShareService) Start(req model.StartShareRequest) (model.ShareStatus, er
 	}
 	s.port = port
 
+	return cloneStatus(s.status), nil
+}
+
+// SyncFiles 分享进行中同步文件列表（增删文件）。
+func (s *ShareService) SyncFiles(files []model.ShareFile) (model.ShareStatus, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if !s.status.Active {
+		return s.status, ErrShareNotActive
+	}
+
+	normalized, err := normalizeFiles(files)
+	if err != nil {
+		return s.status, err
+	}
+
+	s.status.Files = normalized
+	return cloneStatus(s.status), nil
+}
+
+// SyncArticle 分享进行中同步/清除当前文章。
+func (s *ShareService) SyncArticle(article *model.ShareArticle) (model.ShareStatus, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if !s.status.Active {
+		return s.status, ErrShareNotActive
+	}
+
+	if article == nil {
+		s.status.Article = nil
+		return cloneStatus(s.status), nil
+	}
+
+	content := strings.TrimSpace(article.Content)
+	if content == "" {
+		return s.status, fmt.Errorf("article content is required")
+	}
+
+	id := strings.TrimSpace(article.ID)
+	if id == "" {
+		id = uuid.NewString()
+	}
+
+	s.status.Article = &model.ShareArticle{
+		ID:      id,
+		Title:   strings.TrimSpace(article.Title),
+		Content: content,
+	}
 	return cloneStatus(s.status), nil
 }
 
@@ -115,13 +163,17 @@ func (s *ShareService) FileByID(id string) (model.ShareFile, bool) {
 
 func (s *ShareService) resetLocked() {
 	s.status = model.ShareStatus{
-		Active: false,
-		Port:   s.port,
-		Files:  []model.ShareFile{},
+		Active:  false,
+		Port:    s.port,
+		Files:   []model.ShareFile{},
+		Article: nil,
 	}
 }
 
 func normalizeFiles(files []model.ShareFile) ([]model.ShareFile, error) {
+	if len(files) == 0 {
+		return []model.ShareFile{}, nil
+	}
 	result := make([]model.ShareFile, 0, len(files))
 	for _, file := range files {
 		if file.Path == "" {
@@ -158,5 +210,9 @@ func cloneStatus(status model.ShareStatus) model.ShareStatus {
 	files := make([]model.ShareFile, len(status.Files))
 	copy(files, status.Files)
 	status.Files = files
+	if status.Article != nil {
+		article := *status.Article
+		status.Article = &article
+	}
 	return status
 }

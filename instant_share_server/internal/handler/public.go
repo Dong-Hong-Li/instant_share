@@ -1,25 +1,38 @@
 package handler
 
 import (
-	"html/template"
+	"fmt"
+	"io/fs"
 	"net/http"
+	"net/url"
+	"os"
+	"strings"
 
+	"instant_share/server/internal/model"
 	"instant_share/server/internal/service"
-	"instant_share/server/internal/util"
+	webassets "instant_share/server/internal/web"
 )
 
-// PublicHandler 接收者只读页面：通过 HTTP 查看当前分享的文件列表。
+// PublicHandler 接收者页面：通过 HTTP 查看当前分享的文件列表。
 type PublicHandler struct {
-	share *service.ShareService
+	share fs.FS
+	files *service.ShareService
 }
 
 func NewPublicHandler(share *service.ShareService) *PublicHandler {
-	return &PublicHandler{share: share}
+	return &PublicHandler{
+		share: webassets.FS(),
+		files: share,
+	}
 }
 
 func (h *PublicHandler) Register(mux *http.ServeMux) {
 	mux.HandleFunc("/", h.handleRoot)
-	mux.HandleFunc("/share", h.handleSharePage)
+	mux.HandleFunc("/share", h.handleShareEntry)
+	mux.Handle("/share/", h.handleShareStatic())
+	mux.HandleFunc("/api/v1/share/status", h.handleShareStatus)
+	mux.HandleFunc("/api/v1/share/files/batch/download", h.handleBatchDownload)
+	mux.HandleFunc("/api/v1/share/files/", h.handleShareFileDownload)
 }
 
 func (h *PublicHandler) handleRoot(w http.ResponseWriter, r *http.Request) {
@@ -27,81 +40,104 @@ func (h *PublicHandler) handleRoot(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
-	http.Redirect(w, r, "/share", http.StatusFound)
+	http.Redirect(w, r, "/share/", http.StatusFound)
 }
 
-func (h *PublicHandler) handleSharePage(w http.ResponseWriter, r *http.Request) {
-	status := h.share.Status()
-
-	type pageFile struct {
-		Name     string
-		SizeText string
+func (h *PublicHandler) handleShareEntry(w http.ResponseWriter, r *http.Request) {
+	if r.URL.Path != "/share" {
+		http.NotFound(w, r)
+		return
 	}
-
-	files := make([]pageFile, 0, len(status.Files))
-	for _, file := range status.Files {
-		files = append(files, pageFile{
-			Name:     file.Name,
-			SizeText: util.FormatSize(file.Size),
-		})
-	}
-
-	data := struct {
-		Title  string
-		Active bool
-		Files  []pageFile
-	}{
-		Title:  "Instant Share",
-		Active: status.Active,
-		Files:  files,
-	}
-
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	if err := sharePageTemplate.Execute(w, data); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-	}
+	http.Redirect(w, r, "/share/", http.StatusFound)
 }
 
-var sharePageTemplate = template.Must(template.New("share").Parse(`<!DOCTYPE html>
-<html lang="zh-CN">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>{{ .Title }}</title>
-  <style>
-    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #f5f6f8; margin: 0; color: #1f2937; }
-    .wrap { max-width: 720px; margin: 0 auto; padding: 32px 16px; }
-    h1 { margin: 0 0 8px; font-size: 28px; }
-    .hint { color: #64748b; font-size: 14px; margin-bottom: 24px; }
-    .card { background: #fff; border-radius: 12px; box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08); overflow: hidden; }
-    .item { padding: 16px 20px; border-top: 1px solid #eef2f7; }
-    .item:first-child { border-top: 0; }
-    .name { font-weight: 600; word-break: break-all; }
-    .size { color: #64748b; font-size: 14px; margin-top: 4px; }
-    .empty { color: #64748b; }
-  </style>
-</head>
-<body>
-  <div class="wrap">
-    <h1>{{ .Title }}</h1>
-    {{ if .Active }}
-    <div class="hint">当前分享中的文件（只读浏览，暂不支持操作）</div>
-    <div class="card">
-      {{ range .Files }}
-      <div class="item">
-        <div class="name">{{ .Name }}</div>
-        <div class="size">{{ .SizeText }}</div>
-      </div>
-      {{ else }}
-      <div class="item empty">暂无文件</div>
-      {{ end }}
-    </div>
-    {{ else }}
-    <div class="hint">当前没有进行中的分享</div>
-    <div class="card">
-      <div class="item empty">请等待发起者开启分享</div>
-    </div>
-    {{ end }}
-  </div>
-</body>
-</html>`))
+func (h *PublicHandler) handleShareStatic() http.Handler {
+	fileServer := http.StripPrefix("/share/", webassets.FileServer())
+
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		path := strings.TrimPrefix(r.URL.Path, "/share/")
+		if path == "" || path == "/" {
+			path = "index.html"
+		}
+
+		if _, err := fs.Stat(h.share, path); err != nil {
+			fallback := r.Clone(r.Context())
+			fallback.URL.Path = "/share/index.html"
+			fileServer.ServeHTTP(w, fallback)
+			return
+		}
+
+		fileServer.ServeHTTP(w, r)
+	})
+}
+
+func (h *PublicHandler) handleShareStatus(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		methodNotAllowed(w)
+		return
+	}
+
+	status := h.files.Status()
+	writeJSON(w, http.StatusOK, model.APIResponse{
+		OK:   true,
+		Data: toPublicShareStatus(status),
+	})
+}
+
+func (h *PublicHandler) handleShareFileDownload(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		methodNotAllowed(w)
+		return
+	}
+
+	status := h.files.Status()
+	if !status.Active {
+		writeError(w, http.StatusNotFound, "share is not active")
+		return
+	}
+
+	path := strings.TrimPrefix(r.URL.Path, "/api/v1/share/files/")
+	id := strings.TrimSuffix(path, "/download")
+	id = strings.Trim(id, "/")
+	if id == "" || strings.Contains(id, "/") || strings.HasPrefix(id, "batch") {
+		http.NotFound(w, r)
+		return
+	}
+
+	file, ok := h.files.FileByID(id)
+	if !ok {
+		http.NotFound(w, r)
+		return
+	}
+
+	f, err := os.Open(file.Path)
+	if err != nil {
+		writeError(w, http.StatusNotFound, "file not found")
+		return
+	}
+	defer f.Close()
+
+	info, err := f.Stat()
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "file not readable")
+		return
+	}
+	if info.IsDir() {
+		writeError(w, http.StatusBadRequest, "directory download is not supported")
+		return
+	}
+
+	w.Header().Set("Content-Disposition", contentDispositionAttachment(file.Name))
+	w.Header().Set("Content-Type", "application/octet-stream")
+	http.ServeContent(w, r, file.Name, info.ModTime(), f)
+}
+
+func contentDispositionAttachment(filename string) string {
+	ascii := strings.Map(func(r rune) rune {
+		if r > 127 || r == '"' || r == '\\' {
+			return '_'
+		}
+		return r
+	}, filename)
+	return fmt.Sprintf(`attachment; filename="%s"; filename*=UTF-8''%s`, ascii, url.PathEscape(filename))
+}

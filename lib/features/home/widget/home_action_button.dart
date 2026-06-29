@@ -6,15 +6,18 @@ import 'package:instant_share/resource/screen_utils/layout_dimens_h.dart';
 import 'package:instant_share/resource/screen_utils/layout_dimens_s.dart';
 import 'package:instant_share/resource/screen_utils/layout_dimens_w.dart';
 
-/// 中央主操作按钮的三种形态。
+/// 中央主操作按钮的四种形态。
 enum HomeActionState {
   /// 未选文件：加号，点击添加
   add,
 
-  /// 已选文件、未分享：开关（灰，待开启）
+  /// 文章模式、无内容：编辑图标，点击粘贴或聚焦编辑区
+  compose,
+
+  /// 已有内容、未分享：开关（灰，待开启）
   shareOff,
 
-  /// 已选文件、分享中：开关（绿，已开启）
+  /// 已有内容、分享中：开关（绿，已开启）
   shareOn,
 }
 
@@ -39,7 +42,8 @@ class HomeActionButton extends StatelessWidget {
   static const Duration _duration = Duration(milliseconds: 320);
   static const Curve _curve = Curves.easeOutCubic;
 
-  bool get _isShareMode => state != HomeActionState.add;
+  bool get _isShareMode =>
+      state == HomeActionState.shareOff || state == HomeActionState.shareOn;
   bool get _isSharing => state == HomeActionState.shareOn;
 
   @override
@@ -51,7 +55,12 @@ class HomeActionButton extends StatelessWidget {
     final iconColor = _isSharing
         ? HomePalette.switchIconOn
         : HomePalette.switchIconOff;
-    final icon = _isShareMode ? Icons.power_settings_new : Icons.add;
+    final icon = switch (state) {
+      HomeActionState.add => Icons.add,
+      HomeActionState.compose => Icons.auto_awesome_outlined,
+      HomeActionState.shareOff ||
+      HomeActionState.shareOn => Icons.power_settings_new,
+    };
 
     return _HoverScale(
       enabled: enabled,

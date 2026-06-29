@@ -10,23 +10,31 @@ import (
 	"instant_share/server/internal/service"
 )
 
-// WSAdminHandler admin WebSocket：仅 share.start / share.stop。
+// WSAdminHandler admin WebSocket：分享启停与文件列表同步。
 type WSAdminHandler struct {
 	share *service.ShareService
+	ws    *websocket.Client
 }
 
-func NewWSAdminHandler(share *service.ShareService) *WSAdminHandler {
-	return &WSAdminHandler{share: share}
+func NewWSAdminHandler(share *service.ShareService, ws *websocket.Client) *WSAdminHandler {
+	return &WSAdminHandler{share: share, ws: ws}
 }
 
 func (h *WSAdminHandler) Register(client *websocket.Client) {
 	client.SetAuthFunc(h.authenticate)
 	client.RegisterHandler("share.start", h.handleShareStart)
 	client.RegisterHandler("share.stop", h.handleShareStop)
+	client.RegisterHandler("share.sync", h.handleShareSync)
+	client.RegisterHandler("share.article.sync", h.handleShareArticleSync)
+	client.SetViewerConnectHook(h.handleViewerConnect)
 }
 
 func (h *WSAdminHandler) authenticate(_ context.Context, req websocket.AuthRequest) (string, string, error) {
 	return websocket.DefaultAuth(context.Background(), req)
+}
+
+func (h *WSAdminHandler) handleViewerConnect(conn *websocket.Connection) {
+	h.pushShareStatus(conn)
 }
 
 func (h *WSAdminHandler) handleShareStart(_ context.Context, conn *websocket.Connection, _ []byte, packet websocket.Packet) error {
@@ -52,6 +60,8 @@ func (h *WSAdminHandler) handleShareStart(_ context.Context, conn *websocket.Con
 		}
 		return conn.WriteResponse(websocket.Error("share.start_ack", packet.RequestID, code, err.Error()))
 	}
+
+	h.broadcastShareStatus()
 	return conn.WriteResponse(websocket.Success("share.start_ack", packet.RequestID, status))
 }
 
@@ -68,5 +78,73 @@ func (h *WSAdminHandler) handleShareStop(_ context.Context, conn *websocket.Conn
 		}
 		return conn.WriteResponse(websocket.Error("share.stop_ack", packet.RequestID, code, err.Error()))
 	}
+
+	h.broadcastShareStatus()
 	return conn.WriteResponse(websocket.Success("share.stop_ack", packet.RequestID, status))
+}
+
+func (h *WSAdminHandler) handleShareSync(_ context.Context, conn *websocket.Connection, _ []byte, packet websocket.Packet) error {
+	if conn.Role() != websocket.RoleAdmin {
+		return conn.WriteResponse(websocket.Error("share.sync_ack", packet.RequestID, websocket.CodeForbidden, "admin only"))
+	}
+
+	var req model.StartShareRequest
+	if len(packet.Data) > 0 {
+		if err := json.Unmarshal(packet.Data, &req); err != nil {
+			return conn.WriteResponse(websocket.Error("share.sync_ack", packet.RequestID, websocket.CodeBadRequest, "invalid request data"))
+		}
+	}
+
+	status, err := h.share.SyncFiles(req.Files)
+	if err != nil {
+		code := websocket.CodeBadRequest
+		switch {
+		case errors.Is(err, service.ErrShareNotActive):
+			code = websocket.CodeConflict
+		case errors.Is(err, service.ErrNoFiles):
+			code = websocket.CodeBadRequest
+		}
+		return conn.WriteResponse(websocket.Error("share.sync_ack", packet.RequestID, code, err.Error()))
+	}
+
+	h.broadcastShareStatus()
+	return conn.WriteResponse(websocket.Success("share.sync_ack", packet.RequestID, status))
+}
+
+func (h *WSAdminHandler) handleShareArticleSync(_ context.Context, conn *websocket.Connection, _ []byte, packet websocket.Packet) error {
+	if conn.Role() != websocket.RoleAdmin {
+		return conn.WriteResponse(websocket.Error("share.article.sync_ack", packet.RequestID, websocket.CodeForbidden, "admin only"))
+	}
+
+	var req model.SyncArticleRequest
+	if len(packet.Data) > 0 {
+		if err := json.Unmarshal(packet.Data, &req); err != nil {
+			return conn.WriteResponse(websocket.Error("share.article.sync_ack", packet.RequestID, websocket.CodeBadRequest, "invalid request data"))
+		}
+	}
+
+	status, err := h.share.SyncArticle(req.Article)
+	if err != nil {
+		code := websocket.CodeBadRequest
+		if errors.Is(err, service.ErrShareNotActive) {
+			code = websocket.CodeConflict
+		}
+		return conn.WriteResponse(websocket.Error("share.article.sync_ack", packet.RequestID, code, err.Error()))
+	}
+
+	h.broadcastShareStatus()
+	return conn.WriteResponse(websocket.Success("share.article.sync_ack", packet.RequestID, status))
+}
+
+func (h *WSAdminHandler) broadcastShareStatus() {
+	if h.ws == nil {
+		return
+	}
+	public := toPublicShareStatus(h.share.Status())
+	h.ws.BroadcastToRole(websocket.RoleViewer, websocket.Success("share.status", "", public))
+}
+
+func (h *WSAdminHandler) pushShareStatus(conn *websocket.Connection) {
+	public := toPublicShareStatus(h.share.Status())
+	_ = conn.WriteResponse(websocket.Success("share.status", "", public))
 }

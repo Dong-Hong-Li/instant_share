@@ -2,6 +2,10 @@
 setlocal
 cd /d "%~dp0"
 
+echo [build_lib] building web frontend ...
+call build_web.bat
+if errorlevel 1 exit /b 1
+
 set OUT=..\assets\lib\instantshare.dll
 if not exist "..\assets\lib" mkdir "..\assets\lib"
 

@@ -21,7 +21,7 @@ type App struct {
 func New(cfg config.Config) *App {
 	share := service.NewShareService(cfg.Host, cfg.Port)
 	wsClient := infraws.NewClient(cfg.WebSocket)
-	wsAdmin := handler.NewWSAdminHandler(share)
+	wsAdmin := handler.NewWSAdminHandler(share, wsClient)
 	wsAdmin.Register(wsClient)
 
 	mux := http.NewServeMux()
@@ -33,7 +33,7 @@ func New(cfg config.Config) *App {
 	// 发起者 admin：WebSocket 控制分享启停
 	mux.Handle("/ws", wsClient)
 
-	// 接收者：HTTP 只读大厅（/ 放最后，避免覆盖 API 路由）
+	// 接收者：打包后的 Web 前端（/share/）+ 公开状态 API
 	public := handler.NewPublicHandler(share)
 	public.Register(mux)
 

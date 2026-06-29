@@ -10,6 +10,10 @@ abstract final class WsFrameType {
   static const shareStartAck = 'share.start_ack';
   static const shareStop = 'share.stop';
   static const shareStopAck = 'share.stop_ack';
+  static const shareSync = 'share.sync';
+  static const shareSyncAck = 'share.sync_ack';
+  static const shareArticleSync = 'share.article.sync';
+  static const shareArticleSyncAck = 'share.article.sync_ack';
   static const shareStatus = 'share.status';
   static const shareStatusAck = 'share.status_ack';
 

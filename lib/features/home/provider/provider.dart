@@ -4,6 +4,8 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/legacy.dart';
+import 'package:instant_share/features/home/data/home_article_item.dart';
+import 'package:instant_share/features/home/data/home_article_store.dart';
 import 'package:instant_share/features/home/data/home_file_item.dart';
 import 'package:instant_share/features/home/data/home_share_mode.dart';
 import 'package:instant_share/infrastructure/file_picker_manager.dart';
@@ -36,6 +38,9 @@ class HomeProvider extends ChangeNotifier {
   int? _serverPort;
   String? _serverShareUrl;
   List<String> _alternateShareUrls = const [];
+  List<HomeArticleItem> _articles = [];
+  String? _sharedArticleId;
+  String? _lastSharedArticleId;
 
   List<HomeFileItem> get selectedFiles => List.unmodifiable(_selectedFiles);
 
@@ -53,6 +58,21 @@ class HomeProvider extends ChangeNotifier {
   bool get isShareBusy => _isShareBusy;
 
   bool get isSharing => _isSharing;
+
+  List<HomeArticleItem> get articles => List.unmodifiable(_articles);
+
+  String? get sharedArticleId => _sharedArticleId;
+
+  bool isArticleShared(String id) => _sharedArticleId == id;
+
+  HomeArticleItem? get sharedArticle {
+    final id = _sharedArticleId;
+    if (id == null) return null;
+    for (final article in _articles) {
+      if (article.id == id) return article;
+    }
+    return null;
+  }
 
   String? get shareUrl => _shareUrl;
 
@@ -94,12 +114,93 @@ class HomeProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// 启动时同步：若 Go 端仍有遗留分享会话则自动 stop。
+  /// 创建文章；正文为空时返回 null。
+  Future<HomeArticleItem?> createArticle({
+    required String title,
+    required String content,
+  }) async {
+    final body = content.trim();
+    if (body.isEmpty) return null;
+
+    final article = HomeArticleItem(
+      id: _uuid.v4(),
+      title: title.trim(),
+      content: body,
+      createdAtMs: DateTime.now().millisecondsSinceEpoch,
+    );
+    _articles.insert(0, article);
+    await _persistArticles();
+    notifyListeners();
+    return article;
+  }
+
+  Future<void> removeArticle(String id) async {
+    final index = _articles.indexWhere((item) => item.id == id);
+    if (index == -1) return;
+    _articles.removeAt(index);
+
+    final wasShared = _sharedArticleId == id;
+    if (wasShared) {
+      _sharedArticleId = null;
+    }
+    if (_lastSharedArticleId == id) {
+      _lastSharedArticleId = null;
+    }
+
+    await _persistArticles();
+    if (wasShared && _isSharing) {
+      await _syncSharedArticleToServer();
+    }
+    notifyListeners();
+  }
+
+  Future<bool> copyArticleContent(String id) async {
+    HomeArticleItem? target;
+    for (final article in _articles) {
+      if (article.id == id) {
+        target = article;
+        break;
+      }
+    }
+    if (target == null) return false;
+
+    await Clipboard.setData(ClipboardData(text: target.content));
+    return true;
+  }
+
+  /// 分享服务开启后，点击文章切换「已分享 / 未分享」。
+  ///
+  /// 返回 null 表示服务未开启；true/false 表示切换后的分享态。
+  Future<bool?> toggleArticleShared(String id) async {
+    if (!_isSharing) return null;
+
+    final exists = _articles.any((item) => item.id == id);
+    if (!exists) return null;
+
+    if (_sharedArticleId == id) {
+      _sharedArticleId = null;
+      _lastSharedArticleId = null;
+    } else {
+      _sharedArticleId = id;
+      _lastSharedArticleId = id;
+    }
+
+    await _persistArticles();
+    notifyListeners();
+    if (_isSharing) {
+      await _syncSharedArticleToServer();
+    }
+    return _sharedArticleId == id;
+  }
+
+  /// 启动时同步：若 Go 端仍有遗留分享会话则自动 stop；恢复本地文章列表。
   Future<void> syncOnStartup() async {
     if (_syncStarted) return;
     _syncStarted = true;
 
     try {
+      await _loadArticlesFromStorage();
+
       final health = await _session.fetchHealth();
       _applyServerHealth(health);
 
@@ -114,6 +215,24 @@ class HomeProvider extends ChangeNotifier {
     }
   }
 
+  Future<void> _loadArticlesFromStorage() async {
+    final snapshot = await HomeArticleStore.load();
+    _articles = List<HomeArticleItem>.from(snapshot.articles);
+    _lastSharedArticleId = snapshot.lastSharedArticleId;
+
+    final lastId = _lastSharedArticleId;
+    if (lastId != null && _articles.any((item) => item.id == lastId)) {
+      _sharedArticleId = lastId;
+    }
+  }
+
+  Future<void> _persistArticles() {
+    return HomeArticleStore.save(
+      articles: _articles,
+      lastSharedArticleId: _lastSharedArticleId,
+    );
+  }
+
   void _applyServerHealth(ShareServerHealthDto health) {
     _serverPort = health.port;
     _serverShareUrl = health.shareUrl;
@@ -122,7 +241,7 @@ class HomeProvider extends ChangeNotifier {
 
   /// 切换分享开关（开始 / 停止分享）。
   Future<void> toggleSharing() async {
-    if (!hasFiles || _isShareBusy) return;
+    if (_isShareBusy) return;
     if (_isSharing) {
       await _stopSharing();
     } else {
@@ -195,7 +314,12 @@ class HomeProvider extends ChangeNotifier {
         changed = true;
       }
 
-      if (changed) notifyListeners();
+      if (changed) {
+        if (_isSharing) {
+          await _syncSharingFiles();
+        }
+        notifyListeners();
+      }
     } catch (error, stackTrace) {
       debugPrint('[HomeProvider] pickFiles failed: $error\n$stackTrace');
     } finally {
@@ -210,8 +334,12 @@ class HomeProvider extends ChangeNotifier {
     _selectedFiles.removeAt(index);
 
     if (_selectedFiles.isEmpty && _isSharing) {
-      await _stopSharing();
+      await _syncSharingFiles();
+      notifyListeners();
     } else {
+      if (_isSharing) {
+        await _syncSharingFiles();
+      }
       notifyListeners();
     }
   }
@@ -221,7 +349,8 @@ class HomeProvider extends ChangeNotifier {
     _selectedFiles.clear();
 
     if (_isSharing) {
-      await _stopSharing();
+      await _syncSharingFiles();
+      notifyListeners();
     } else {
       notifyListeners();
     }
@@ -241,6 +370,9 @@ class HomeProvider extends ChangeNotifier {
       final status = await _session.startShare(_selectedFiles);
       _isSharing = status.active;
       _shareUrl = _resolveShareUrl(status);
+      if (_isSharing && _sharedArticleId != null) {
+        await _syncSharedArticleToServer();
+      }
     } catch (error, stackTrace) {
       _isSharing = false;
       _shareUrl = null;
@@ -264,6 +396,29 @@ class HomeProvider extends ChangeNotifier {
     } finally {
       _isShareBusy = false;
       notifyListeners();
+    }
+  }
+
+  Future<void> _syncSharingFiles() async {
+    try {
+      await _session.syncShare(_selectedFiles);
+    } catch (error, stackTrace) {
+      debugPrint('[HomeProvider] syncShare failed: $error\n$stackTrace');
+    }
+  }
+
+  Future<void> _syncSharedArticleToServer() async {
+    if (!_isSharing) return;
+
+    try {
+      final article = sharedArticle;
+      await _session.syncArticle(
+        id: article?.id,
+        title: article?.title ?? '',
+        content: article?.content ?? '',
+      );
+    } catch (error, stackTrace) {
+      debugPrint('[HomeProvider] syncArticle failed: $error\n$stackTrace');
     }
   }
 

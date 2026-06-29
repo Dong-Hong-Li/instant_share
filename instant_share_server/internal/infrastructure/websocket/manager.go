@@ -62,3 +62,15 @@ func (m *Manager) Count() int {
 func (m *Manager) OnlineUserCount() int {
 	return m.Count()
 }
+
+func (m *Manager) BroadcastByRole(role string, packet any) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	for _, conn := range m.connections {
+		if conn.Role() != role {
+			continue
+		}
+		_ = conn.WriteJSON(packet)
+	}
+}

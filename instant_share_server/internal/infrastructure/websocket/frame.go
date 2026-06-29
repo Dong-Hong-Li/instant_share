@@ -36,6 +36,8 @@ const (
 
 	// RoleAdmin 发起者（谁启动 Go 服务 / Flutter 桌面端）。
 	RoleAdmin = "admin"
+	// RoleViewer 接收者（PC Web 浏览页，只读订阅分享状态）。
+	RoleViewer = "viewer"
 )
 
 func Success(packetType, requestID string, data any) Response {

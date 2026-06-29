@@ -1,4 +1,3 @@
-/// 分享相关 DTO，字段与 Go 端 model 对齐。
 class ShareFileDto {
   const ShareFileDto({
     required this.id,
@@ -29,6 +28,32 @@ class ShareFileDto {
   }
 }
 
+class ShareArticleDto {
+  const ShareArticleDto({
+    required this.id,
+    required this.title,
+    required this.content,
+  });
+
+  final String id;
+  final String title;
+  final String content;
+
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'title': title,
+    'content': content,
+  };
+
+  factory ShareArticleDto.fromJson(Map<String, dynamic> json) {
+    return ShareArticleDto(
+      id: json['id'] as String? ?? '',
+      title: json['title'] as String? ?? '',
+      content: json['content'] as String? ?? '',
+    );
+  }
+}
+
 class ShareStatusDto {
   const ShareStatusDto({
     required this.active,
@@ -38,6 +63,7 @@ class ShareStatusDto {
     this.ip,
     this.port,
     this.startedAt,
+    this.article,
   });
 
   final bool active;
@@ -47,6 +73,7 @@ class ShareStatusDto {
   final int? port;
   final DateTime? startedAt;
   final List<ShareFileDto> files;
+  final ShareArticleDto? article;
 
   factory ShareStatusDto.fromJson(Map<String, dynamic> json) {
     final rawFiles = json['files'];
@@ -63,6 +90,12 @@ class ShareStatusDto {
       startedAt = DateTime.tryParse(rawStartedAt);
     }
 
+    ShareArticleDto? article;
+    final rawArticle = json['article'];
+    if (rawArticle is Map<String, dynamic>) {
+      article = ShareArticleDto.fromJson(rawArticle);
+    }
+
     return ShareStatusDto(
       active: json['active'] as bool? ?? false,
       sessionId: json['session_id'] as String?,
@@ -71,15 +104,21 @@ class ShareStatusDto {
       port: (json['port'] as num?)?.toInt(),
       startedAt: startedAt,
       files: files,
+      article: article,
     );
   }
 }
 
+class SyncArticleRequestDto {
+  const SyncArticleRequestDto({this.article});
+
+  final ShareArticleDto? article;
+
+  Map<String, dynamic> toJson() => {'article': article?.toJson()};
+}
+
 class StartShareRequestDto {
-  const StartShareRequestDto({
-    required this.files,
-    this.port,
-  });
+  const StartShareRequestDto({required this.files, this.port});
 
   final List<ShareFileDto> files;
   final int? port;
