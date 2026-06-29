@@ -39,6 +39,9 @@ app.*.symbols
 # Obfuscation related
 app.*.map.json
 
+# Go c-shared 构建生成的 C 头文件（产物 .dll/.dylib/.so 需提交或 CI 构建）
+assets/lib/*.h
+
 # Android Studio will place build artifacts here
 /android/app/debug
 /android/app/profile

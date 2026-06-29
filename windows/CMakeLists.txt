@@ -87,6 +87,16 @@ if(PLUGIN_BUNDLED_LIBRARIES)
     COMPONENT Runtime)
 endif()
 
+# Go c-shared 动态库（进程内分享服务，dart:ffi 从 exe 同目录加载）。
+set(SHARE_SERVER_DLL "${CMAKE_CURRENT_SOURCE_DIR}/../assets/lib/instantshare.dll")
+if(EXISTS "${SHARE_SERVER_DLL}")
+  install(FILES "${SHARE_SERVER_DLL}"
+    DESTINATION "${INSTALL_BUNDLE_LIB_DIR}"
+    COMPONENT Runtime)
+else()
+  message(WARNING "instantshare.dll not found at ${SHARE_SERVER_DLL}; run instant_share_server/build_lib.bat")
+endif()
+
 # Copy the native assets provided by the build.dart from all packages.
 set(NATIVE_ASSETS_DIR "${PROJECT_BUILD_DIR}native_assets/windows/")
 install(DIRECTORY "${NATIVE_ASSETS_DIR}"

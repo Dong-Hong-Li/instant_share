@@ -1,0 +1,261 @@
+name: Build Desktop
+
+# 仅 tag 触发，且 tag 必须带平台后缀：v{version}-{windows|macos|linux}
+# 示例：git tag v1.0.0-windows && git push origin v1.0.0-windows
+on:
+  push:
+    tags:
+      - "*-windows"
+      - "*-macos"
+      - "*-linux"
+
+jobs:
+  build-windows:
+    if: endsWith(github.ref_name, '-windows')
+    runs-on: windows-latest
+    steps:
+      - name: Parse tag
+        shell: bash
+        run: |
+          TAG="${{ github.ref_name }}"
+          if [[ ! "$TAG" =~ ^v(.+)-windows$ ]]; then
+            echo "::error::Tag 格式须为 v{version}-windows，例如 v1.0.0-windows"
+            exit 1
+          fi
+          echo "VERSION=${BASH_REMATCH[1]}" >> "$GITHUB_ENV"
+          echo "RELEASE_TAG=v${BASH_REMATCH[1]}" >> "$GITHUB_ENV"
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Clone assets_gen
+        shell: bash
+        run: git clone --depth 1 https://gitee.com/lidonghonglalala/assets_gen.git "${GITHUB_WORKSPACE}/../assets_gen"
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.25.x"
+          cache-dependency-path: instant_share_server/go.sum
+
+      - name: Install MinGW (Go CGO)
+        run: choco install mingw -y --no-progress
+
+      - name: Add MinGW to PATH
+        shell: pwsh
+        run: |
+          $mingwBin = "C:\ProgramData\chocolatey\lib\mingw\tools\install\mingw64\bin"
+          if (-not (Test-Path $mingwBin)) { throw "MinGW bin not found at $mingwBin" }
+          Add-Content -Path $env:GITHUB_PATH -Value $mingwBin
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Prepare gitignored asset placeholder
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path assets/bin | Out-Null
+          New-Item -ItemType File -Force -Path assets/bin/instant-share-server | Out-Null
+
+      - name: Build Go c-shared library
+        working-directory: instant_share_server
+        run: build_lib.bat
+
+      - name: Flutter pub get
+        run: flutter pub get
+
+      - name: Build Windows release
+        run: flutter build windows --release
+
+      - name: Verify output
+        shell: pwsh
+        run: |
+          $release = "build\windows\x64\runner\Release"
+          foreach ($file in @("instant_share.exe", "instantshare.dll", "flutter_windows.dll")) {
+            if (-not (Test-Path (Join-Path $release $file))) { throw "Missing $file" }
+          }
+
+      - name: Archive Release bundle
+        shell: pwsh
+        run: |
+          $zip = "instant_share-windows-x64-v${{ env.VERSION }}.zip"
+          Compress-Archive -Path "build\windows\x64\runner\Release\*" -DestinationPath $zip -Force
+          echo "ARCHIVE=$zip" >> $env:GITHUB_ENV
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: instant_share-windows-x64
+          path: ${{ env.ARCHIVE }}
+          retention-days: 30
+
+      - name: Upload to GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.RELEASE_TAG }}
+          files: ${{ env.ARCHIVE }}
+          generate_release_notes: true
+
+  build-macos:
+    if: endsWith(github.ref_name, '-macos')
+    runs-on: macos-latest
+    steps:
+      - name: Parse tag
+        run: |
+          TAG="${{ github.ref_name }}"
+          if [[ ! "$TAG" =~ ^v(.+)-macos$ ]]; then
+            echo "::error::Tag 格式须为 v{version}-macos，例如 v1.0.0-macos"
+            exit 1
+          fi
+          echo "VERSION=${BASH_REMATCH[1]}" >> "$GITHUB_ENV"
+          echo "RELEASE_TAG=v${BASH_REMATCH[1]}" >> "$GITHUB_ENV"
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Clone assets_gen
+        run: git clone --depth 1 https://gitee.com/lidonghonglalala/assets_gen.git "${GITHUB_WORKSPACE}/../assets_gen"
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.25.x"
+          cache-dependency-path: instant_share_server/go.sum
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Prepare gitignored asset placeholder
+        run: |
+          mkdir -p assets/bin
+          touch assets/bin/instant-share-server
+
+      - name: Build Go c-shared library
+        working-directory: instant_share_server
+        run: ./build_lib.sh macos
+
+      - name: Flutter pub get
+        run: flutter pub get
+
+      - name: Build macOS release
+        run: flutter build macos --release
+
+      - name: Verify output
+        run: |
+          APP="build/macos/Build/Products/Release/instant_share.app"
+          DYLIB="$APP/Contents/Resources/libinstantshare.dylib"
+          test -d "$APP" || (echo "Missing $APP" && exit 1)
+          test -f "$DYLIB" || (echo "Missing $DYLIB" && exit 1)
+
+      - name: Archive Release bundle
+        run: |
+          ARCHIVE="instant_share-macos-v${{ env.VERSION }}.zip"
+          cd build/macos/Build/Products/Release
+          zip -r "../../../../../${ARCHIVE}" instant_share.app
+          echo "ARCHIVE=${ARCHIVE}" >> "$GITHUB_ENV"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: instant_share-macos
+          path: ${{ env.ARCHIVE }}
+          retention-days: 30
+
+      - name: Upload to GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.RELEASE_TAG }}
+          files: ${{ env.ARCHIVE }}
+          generate_release_notes: true
+
+  build-linux:
+    if: endsWith(github.ref_name, '-linux')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Parse tag
+        run: |
+          TAG="${{ github.ref_name }}"
+          if [[ ! "$TAG" =~ ^v(.+)-linux$ ]]; then
+            echo "::error::Tag 格式须为 v{version}-linux，例如 v1.0.0-linux"
+            exit 1
+          fi
+          echo "VERSION=${BASH_REMATCH[1]}" >> "$GITHUB_ENV"
+          echo "RELEASE_TAG=v${BASH_REMATCH[1]}" >> "$GITHUB_ENV"
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Clone assets_gen
+        run: git clone --depth 1 https://gitee.com/lidonghonglalala/assets_gen.git "${GITHUB_WORKSPACE}/../assets_gen"
+
+      - name: Install Linux build dependencies
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y \
+            clang cmake ninja-build pkg-config \
+            libgtk-3-dev liblzma-dev libstdc++-12-dev
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.25.x"
+          cache-dependency-path: instant_share_server/go.sum
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Prepare gitignored asset placeholder
+        run: |
+          mkdir -p assets/bin
+          touch assets/bin/instant-share-server
+
+      - name: Build Go c-shared library
+        working-directory: instant_share_server
+        run: ./build_lib.sh linux
+
+      - name: Flutter pub get
+        run: flutter pub get
+
+      - name: Build Linux release
+        run: flutter build linux --release
+
+      - name: Copy native library into bundle
+        run: |
+          BUNDLE="build/linux/x64/release/bundle"
+          cp assets/lib/libinstantshare.so "$BUNDLE/"
+          chmod +x "$BUNDLE/instant_share"
+
+      - name: Verify output
+        run: |
+          BUNDLE="build/linux/x64/release/bundle"
+          test -f "$BUNDLE/instant_share" || exit 1
+          test -f "$BUNDLE/libinstantshare.so" || exit 1
+
+      - name: Archive Release bundle
+        run: |
+          ARCHIVE="instant_share-linux-x64-v${{ env.VERSION }}.tar.gz"
+          tar -czf "$ARCHIVE" -C build/linux/x64/release bundle
+          echo "ARCHIVE=${ARCHIVE}" >> "$GITHUB_ENV"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: instant_share-linux-x64
+          path: ${{ env.ARCHIVE }}
+          retention-days: 30
+
+      - name: Upload to GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.RELEASE_TAG }}
+          files: ${{ env.ARCHIVE }}
+          generate_release_notes: true

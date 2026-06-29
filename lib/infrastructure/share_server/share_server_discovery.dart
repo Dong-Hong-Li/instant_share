@@ -21,7 +21,7 @@ class ShareServerDiscovery {
     return data != null;
   }
 
-  /// 拉取服务健康信息；失败立即抛出，不做兜底转换。
+  /// 拉取服务健康信息；失败立即抛出
   Future<ShareServerHealthDto> fetchHealth({
     Duration timeout = const Duration(seconds: 5),
   }) async {
