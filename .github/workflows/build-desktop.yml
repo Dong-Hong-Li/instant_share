@@ -1,29 +1,55 @@
 name: Build Desktop
 
-# 仅 tag 触发，且 tag 必须带平台后缀：v{version}-{windows|macos|linux}
-# 示例：git tag v1.0.0-windows && git push origin v1.0.0-windows
+# Tag 触发（正式发版）：
+#   - 格式：v{version}-{windows|macos|linux}，例如 v1.0.0-windows
+#   - 重要：workflow 文件必须在 default 分支（main）上，仅推 test 分支不会触发 tag CI
+#   - 开发流程：test 验证 → 合并 workflow 到 main → 打 tag 并 push
+#
+# 手动触发（test 分支调试）：
+#   Actions → Build Desktop → Run workflow → 选 test 分支 + platform
 on:
   push:
     tags:
       - "*-windows"
       - "*-macos"
       - "*-linux"
+  workflow_dispatch:
+    inputs:
+      platform:
+        description: Target platform
+        required: true
+        type: choice
+        options:
+          - windows
+          - macos
+          - linux
+      version:
+        description: Version label for artifact name
+        required: true
+        default: 1.0.0-test
 
 jobs:
   build-windows:
-    if: endsWith(github.ref_name, '-windows')
+    if: |
+      (github.event_name == 'push' && endsWith(github.ref_name, '-windows')) ||
+      (github.event_name == 'workflow_dispatch' && inputs.platform == 'windows')
     runs-on: windows-latest
     steps:
-      - name: Parse tag
+      - name: Resolve version
         shell: bash
         run: |
-          TAG="${{ github.ref_name }}"
-          if [[ ! "$TAG" =~ ^v(.+)-windows$ ]]; then
-            echo "::error::Tag 格式须为 v{version}-windows，例如 v1.0.0-windows"
-            exit 1
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "VERSION=${{ inputs.version }}" >> "$GITHUB_ENV"
+            echo "RELEASE_TAG=v${{ inputs.version }}" >> "$GITHUB_ENV"
+          else
+            TAG="${{ github.ref_name }}"
+            if [[ ! "$TAG" =~ ^v(.+)-windows$ ]]; then
+              echo "::error::Tag 格式须为 v{version}-windows，例如 v1.0.0-windows"
+              exit 1
+            fi
+            echo "VERSION=${BASH_REMATCH[1]}" >> "$GITHUB_ENV"
+            echo "RELEASE_TAG=v${BASH_REMATCH[1]}" >> "$GITHUB_ENV"
           fi
-          echo "VERSION=${BASH_REMATCH[1]}" >> "$GITHUB_ENV"
-          echo "RELEASE_TAG=v${BASH_REMATCH[1]}" >> "$GITHUB_ENV"
 
       - name: Checkout
         uses: actions/checkout@v4
@@ -93,6 +119,7 @@ jobs:
           retention-days: 30
 
       - name: Upload to GitHub Release
+        if: github.event_name == 'push'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ env.RELEASE_TAG }}
@@ -100,18 +127,25 @@ jobs:
           generate_release_notes: true
 
   build-macos:
-    if: endsWith(github.ref_name, '-macos')
+    if: |
+      (github.event_name == 'push' && endsWith(github.ref_name, '-macos')) ||
+      (github.event_name == 'workflow_dispatch' && inputs.platform == 'macos')
     runs-on: macos-latest
     steps:
-      - name: Parse tag
+      - name: Resolve version
         run: |
-          TAG="${{ github.ref_name }}"
-          if [[ ! "$TAG" =~ ^v(.+)-macos$ ]]; then
-            echo "::error::Tag 格式须为 v{version}-macos，例如 v1.0.0-macos"
-            exit 1
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "VERSION=${{ inputs.version }}" >> "$GITHUB_ENV"
+            echo "RELEASE_TAG=v${{ inputs.version }}" >> "$GITHUB_ENV"
+          else
+            TAG="${{ github.ref_name }}"
+            if [[ ! "$TAG" =~ ^v(.+)-macos$ ]]; then
+              echo "::error::Tag 格式须为 v{version}-macos，例如 v1.0.0-macos"
+              exit 1
+            fi
+            echo "VERSION=${BASH_REMATCH[1]}" >> "$GITHUB_ENV"
+            echo "RELEASE_TAG=v${BASH_REMATCH[1]}" >> "$GITHUB_ENV"
           fi
-          echo "VERSION=${BASH_REMATCH[1]}" >> "$GITHUB_ENV"
-          echo "RELEASE_TAG=v${BASH_REMATCH[1]}" >> "$GITHUB_ENV"
 
       - name: Checkout
         uses: actions/checkout@v4
@@ -168,6 +202,7 @@ jobs:
           retention-days: 30
 
       - name: Upload to GitHub Release
+        if: github.event_name == 'push'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ env.RELEASE_TAG }}
@@ -175,18 +210,25 @@ jobs:
           generate_release_notes: true
 
   build-linux:
-    if: endsWith(github.ref_name, '-linux')
+    if: |
+      (github.event_name == 'push' && endsWith(github.ref_name, '-linux')) ||
+      (github.event_name == 'workflow_dispatch' && inputs.platform == 'linux')
     runs-on: ubuntu-latest
     steps:
-      - name: Parse tag
+      - name: Resolve version
         run: |
-          TAG="${{ github.ref_name }}"
-          if [[ ! "$TAG" =~ ^v(.+)-linux$ ]]; then
-            echo "::error::Tag 格式须为 v{version}-linux，例如 v1.0.0-linux"
-            exit 1
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "VERSION=${{ inputs.version }}" >> "$GITHUB_ENV"
+            echo "RELEASE_TAG=v${{ inputs.version }}" >> "$GITHUB_ENV"
+          else
+            TAG="${{ github.ref_name }}"
+            if [[ ! "$TAG" =~ ^v(.+)-linux$ ]]; then
+              echo "::error::Tag 格式须为 v{version}-linux，例如 v1.0.0-linux"
+              exit 1
+            fi
+            echo "VERSION=${BASH_REMATCH[1]}" >> "$GITHUB_ENV"
+            echo "RELEASE_TAG=v${BASH_REMATCH[1]}" >> "$GITHUB_ENV"
           fi
-          echo "VERSION=${BASH_REMATCH[1]}" >> "$GITHUB_ENV"
-          echo "RELEASE_TAG=v${BASH_REMATCH[1]}" >> "$GITHUB_ENV"
 
       - name: Checkout
         uses: actions/checkout@v4
@@ -254,6 +296,7 @@ jobs:
           retention-days: 30
 
       - name: Upload to GitHub Release
+        if: github.event_name == 'push'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ env.RELEASE_TAG }}
