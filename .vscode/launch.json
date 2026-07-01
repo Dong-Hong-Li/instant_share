@@ -1,0 +1,66 @@
+{
+    // 使用 IntelliSense 了解相关属性。 
+    // 悬停以查看现有属性的描述。
+    // 欲了解更多信息，请访问: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+    
+        {
+            "name": "instant_share",
+            "request": "launch",
+            "type": "dart"
+        },
+        {
+            "name": "instant_share (profile mode)",
+            "request": "launch",
+            "type": "dart",
+            "flutterMode": "profile"
+        },
+        {
+            "name": "instant_share (release mode)",
+            "request": "launch",
+            "type": "dart",
+            "flutterMode": "release"
+        },
+        {
+            "name": "ai_localizations",
+            "cwd": "packages/ai_localizations",
+            "request": "launch",
+            "type": "dart"
+        },
+        {
+            "name": "ai_localizations (profile mode)",
+            "cwd": "packages/ai_localizations",
+            "request": "launch",
+            "type": "dart",
+            "flutterMode": "profile"
+        },
+        {
+            "name": "ai_localizations (release mode)",
+            "cwd": "packages/ai_localizations",
+            "request": "launch",
+            "type": "dart",
+            "flutterMode": "release"
+        },
+        {
+            "name": "state_scope",
+            "cwd": "packages/state_scope",
+            "request": "launch",
+            "type": "dart"
+        },
+        {
+            "name": "state_scope (profile mode)",
+            "cwd": "packages/state_scope",
+            "request": "launch",
+            "type": "dart",
+            "flutterMode": "profile"
+        },
+        {
+            "name": "state_scope (release mode)",
+            "cwd": "packages/state_scope",
+            "request": "launch",
+            "type": "dart",
+            "flutterMode": "release"
+        }
+    ]
+}
