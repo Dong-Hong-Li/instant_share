@@ -202,6 +202,7 @@ func (c *Client) authenticate(ctx context.Context, conn *Connection, r *http.Req
 func (c *Client) readLoop(ctx context.Context, conn *Connection) {
 	conn.raw().SetReadLimit(c.cfg.ReadLimit)
 	pongWait := c.cfg.PongWait()
+	pingPeriod := (pongWait * 9) / 10
 	_ = conn.raw().SetReadDeadline(time.Now().Add(pongWait))
 
 	conn.raw().SetPongHandler(func(string) error {
@@ -212,6 +213,28 @@ func (c *Client) readLoop(ctx context.Context, conn *Connection) {
 	refreshReadDeadline := func() {
 		_ = conn.raw().SetReadDeadline(time.Now().Add(pongWait))
 	}
+
+	ticker := time.NewTicker(pingPeriod)
+	defer ticker.Stop()
+
+	done := make(chan struct{})
+	defer close(done)
+
+	go func() {
+		writeWait := c.cfg.WriteWait()
+		for {
+			select {
+			case <-ticker.C:
+				if err := conn.WritePing(writeWait); err != nil {
+					return
+				}
+			case <-done:
+				return
+			case <-ctx.Done():
+				return
+			}
+		}
+	}()
 
 	for {
 		messageType, payload, err := conn.raw().ReadMessage()

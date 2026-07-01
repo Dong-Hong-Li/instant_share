@@ -7,12 +7,15 @@ import 'package:instant_share/resource/screen_utils/layout_dimens_h.dart';
 import 'package:instant_share/resource/screen_utils/layout_dimens_s.dart';
 import 'package:instant_share/resource/screen_utils/layout_dimens_w.dart';
 
-/// 紧凑型文章卡片（网格展示，已分享 / 未分享通过颜色区分）。
+/// 紧凑型文章卡片（网格展示）。
+///
+/// 未选中 / 已选中 / 已分享 三种视觉态。
 class HomeArticleCard extends StatelessWidget {
   const HomeArticleCard({
     super.key,
     required this.colorValue,
     required this.article,
+    required this.selected,
     required this.shared,
     required this.onTap,
     required this.onDeleteTap,
@@ -20,19 +23,31 @@ class HomeArticleCard extends StatelessWidget {
 
   final ColorValue colorValue;
   final HomeArticleItem article;
+  final bool selected;
   final bool shared;
   final VoidCallback onTap;
   final VoidCallback onDeleteTap;
 
+  bool get _isShared => shared;
+  bool get _isSelected => selected && !shared;
+
   @override
   Widget build(BuildContext context) {
     final iconColor = colorValue.homeUploadIconColor;
-    final titleColor = shared ? HomePalette.switchIconOn : iconColor;
-    final subtitleColor = shared
+    final titleColor = _isShared
+        ? HomePalette.switchIconOn
+        : _isSelected
+        ? HomePalette.articleSelectedForeground
+        : iconColor;
+    final subtitleColor = _isShared
         ? HomePalette.switchIconOn.withValues(alpha: 0.78)
+        : _isSelected
+        ? HomePalette.articleSelectedForeground.withValues(alpha: 0.72)
         : iconColor.withValues(alpha: 0.55);
-    final borderColor = shared
+    final borderColor = _isShared
         ? const Color(0xFF34B45B)
+        : _isSelected
+        ? HomePalette.articleSelectedBorder
         : iconColor.withValues(alpha: 0.12);
 
     return Material(
@@ -42,10 +57,19 @@ class HomeArticleCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(s10),
         child: Ink(
           decoration: BoxDecoration(
-            gradient: shared ? HomePalette.switchOnGradient : null,
-            color: shared ? null : colorValue.homeUploadButtonFill,
+            gradient: _isShared
+                ? HomePalette.switchOnGradient
+                : _isSelected
+                ? HomePalette.articleSelectedGradient
+                : null,
+            color: _isShared || _isSelected
+                ? null
+                : colorValue.homeUploadButtonFill,
             borderRadius: BorderRadius.circular(s10),
-            border: Border.all(color: borderColor, width: shared ? 1.2 : 1),
+            border: Border.all(
+              color: borderColor,
+              width: _isShared || _isSelected ? 1.2 : 1,
+            ),
           ),
           child: Padding(
             padding: EdgeInsets.fromLTRB(w8, h6, w4, h6),
@@ -69,11 +93,23 @@ class HomeArticleCard extends StatelessWidget {
                         ),
                       ),
                     ),
-                    if (shared)
+                    if (_isShared)
                       Padding(
                         padding: EdgeInsets.only(right: w2),
                         child: Text(
                           '已分享',
+                          style: TextStyle(
+                            fontSize: f9,
+                            fontWeight: FontWeight.w600,
+                            color: titleColor,
+                          ),
+                        ),
+                      )
+                    else if (_isSelected)
+                      Padding(
+                        padding: EdgeInsets.only(right: w2),
+                        child: Text(
+                          '已选中',
                           style: TextStyle(
                             fontSize: f9,
                             fontWeight: FontWeight.w600,

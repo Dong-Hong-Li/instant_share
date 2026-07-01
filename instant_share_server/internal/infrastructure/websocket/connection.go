@@ -9,14 +9,14 @@ import (
 
 // Connection 一条 WebSocket 长连接。
 type Connection struct {
-	role     string
-	uid      string
-	deviceID string
-	conn     *gws.Conn
+	role      string
+	uid       string
+	deviceID  string
+	conn      *gws.Conn
 	writeWait time.Duration
-	writeMu  sync.Mutex
+	writeMu   sync.Mutex
 	createdAt time.Time
-	activeAt time.Time
+	activeAt  time.Time
 }
 
 func newConnection(conn *gws.Conn, writeWait time.Duration) *Connection {
@@ -83,6 +83,12 @@ func (c *Connection) WriteBinary(payload []byte) error {
 	defer c.writeMu.Unlock()
 	_ = c.conn.SetWriteDeadline(time.Now().Add(c.writeWait))
 	return c.conn.WriteMessage(gws.BinaryMessage, payload)
+}
+
+func (c *Connection) WritePing(writeWait time.Duration) error {
+	c.writeMu.Lock()
+	defer c.writeMu.Unlock()
+	return c.conn.WriteControl(gws.PingMessage, nil, time.Now().Add(writeWait))
 }
 
 func (c *Connection) Close() error {

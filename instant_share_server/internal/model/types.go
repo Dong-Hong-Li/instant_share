@@ -26,14 +26,22 @@ type PublicShareArticle struct {
 
 // ShareStatus 当前分享状态。
 type ShareStatus struct {
-	Active    bool          `json:"active"`
-	SessionID string        `json:"session_id,omitempty"`
-	BaseURL   string        `json:"base_url,omitempty"`
-	IP        string        `json:"ip,omitempty"`
-	Port      int           `json:"port,omitempty"`
-	StartedAt *time.Time    `json:"started_at,omitempty"`
-	Files     []ShareFile   `json:"files"`
-	Article   *ShareArticle `json:"article,omitempty"`
+	Active    bool           `json:"active"`
+	SessionID string         `json:"session_id,omitempty"`
+	BaseURL   string         `json:"base_url,omitempty"`
+	IP        string         `json:"ip,omitempty"`
+	Port      int            `json:"port,omitempty"`
+	StartedAt *time.Time     `json:"started_at,omitempty"`
+	Files     []ShareFile    `json:"files"`
+	Articles  []ShareArticle `json:"articles"`
+}
+
+// PublicShareStatus 面向接收者浏览的分享状态。
+type PublicShareStatus struct {
+	Active    bool                 `json:"active"`
+	SessionID string               `json:"session_id,omitempty"`
+	Files     []PublicShareFile    `json:"files"`
+	Articles  []PublicShareArticle `json:"articles"`
 }
 
 // PublicShareFile 面向接收者浏览的文件信息（不含本地路径）。
@@ -45,17 +53,9 @@ type PublicShareFile struct {
 	DownloadURL string `json:"download_url"`
 }
 
-// PublicShareStatus 面向接收者浏览的分享状态。
-type PublicShareStatus struct {
-	Active    bool                `json:"active"`
-	SessionID string              `json:"session_id,omitempty"`
-	Files     []PublicShareFile   `json:"files"`
-	Article   *PublicShareArticle `json:"article,omitempty"`
-}
-
-// SyncArticleRequest Admin 同步分享文章。
+// SyncArticleRequest Admin 同步分享文章列表。
 type SyncArticleRequest struct {
-	Article *ShareArticle `json:"article"`
+	Articles []ShareArticle `json:"articles"`
 }
 
 // StartShareRequest Flutter 启动分享请求。

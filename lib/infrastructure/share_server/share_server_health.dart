@@ -38,7 +38,7 @@ class ShareServerHealthDto {
     final shareJson = json['share'];
     final share = shareJson is Map<String, dynamic>
         ? ShareStatusDto.fromJson(shareJson)
-        : const ShareStatusDto(active: false, files: []);
+        : const ShareStatusDto(active: false, files: [], articles: []);
 
     final lanIp = json['lan_ip'] as String;
     final localIpsRaw = json['local_ips'];

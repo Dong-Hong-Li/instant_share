@@ -123,7 +123,7 @@ func (h *WSAdminHandler) handleShareArticleSync(_ context.Context, conn *websock
 		}
 	}
 
-	status, err := h.share.SyncArticle(req.Article)
+	status, err := h.share.SyncArticles(req.Articles)
 	if err != nil {
 		code := websocket.CodeBadRequest
 		if errors.Is(err, service.ErrShareNotActive) {

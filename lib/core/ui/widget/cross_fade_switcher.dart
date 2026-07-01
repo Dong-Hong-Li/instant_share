@@ -27,15 +27,17 @@ class CrossFadeSwitcher extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Stack(
-      fit: StackFit.passthrough,
-      alignment: Alignment.topCenter,
+      fit: StackFit.expand,
       children: children.asMap().entries.map((entry) {
         final int index = entry.key;
         final Widget child = entry.value;
-        return AnimatedOpacity(
-          opacity: index == currentIndex ? 1.0 : 0.0,
-          duration: duration,
-          child: IgnorePointer(ignoring: index != currentIndex, child: child),
+        final visible = index == currentIndex;
+        return Offstage(
+          offstage: !visible,
+          child: TickerMode(
+            enabled: visible,
+            child: IgnorePointer(ignoring: !visible, child: child),
+          ),
         );
       }).toList(),
     );

@@ -70,8 +70,7 @@ abstract final class HomePalette {
   static const Color switchIconOn = Color(0xFFFFFFFF);
 
   /// 分享中状态/倒计时等前景色。
-  static Color statusText({required bool sharing}) =>
-      sharing ? title : title;
+  static Color statusText({required bool sharing}) => sharing ? title : title;
 
   /// 分享倒计时文字。
   static Color countdownText({required bool sharing}) =>
@@ -113,4 +112,16 @@ abstract final class HomePalette {
         ? const Color(0xFF2890C4).withValues(alpha: 0.2)
         : title.withValues(alpha: 0.14);
   }
+
+  // ---- 文章卡片：已选中（待分享）/ 已分享 ----
+
+  /// 已选中、服务未开：淡蓝底 + 蓝字（与分享绿区分）。
+  static const LinearGradient articleSelectedGradient = LinearGradient(
+    begin: Alignment.topCenter,
+    end: Alignment.bottomCenter,
+    colors: [Color(0xFFE6EEFC), Color(0xFFC8D8F5)],
+  );
+
+  static const Color articleSelectedBorder = Color(0xFF6B93E0);
+  static const Color articleSelectedForeground = Color(0xFF2E4A82);
 }

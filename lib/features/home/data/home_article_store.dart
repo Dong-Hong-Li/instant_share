@@ -4,18 +4,18 @@ import 'package:instant_share/core/utils/storage/prefs_util.dart';
 import 'package:instant_share/features/home/data/home_article_item.dart';
 import 'package:instant_share/resource/keys.dart';
 
-/// 文章列表与上次分享标记的本地持久化。
+/// 文章列表与选中分享标记的本地持久化。
 class HomeArticleStore {
   HomeArticleStore._();
 
   static Future<HomeArticleStoreSnapshot> load() async {
     final raw = PrefsUtil.getString(AppKeys.homeArticles);
-    final lastSharedId = PrefsUtil.getString(AppKeys.homeLastSharedArticleId);
+    final sharedIds = _loadSharedArticleIds();
 
     if (raw == null || raw.isEmpty) {
       return HomeArticleStoreSnapshot(
         articles: const [],
-        lastSharedArticleId: lastSharedId,
+        sharedArticleIds: sharedIds,
       );
     }
 
@@ -23,7 +23,7 @@ class HomeArticleStore {
     if (decoded is! List<dynamic>) {
       return HomeArticleStoreSnapshot(
         articles: const [],
-        lastSharedArticleId: lastSharedId,
+        sharedArticleIds: sharedIds,
       );
     }
 
@@ -34,34 +34,52 @@ class HomeArticleStore {
 
     return HomeArticleStoreSnapshot(
       articles: articles,
-      lastSharedArticleId: lastSharedId,
+      sharedArticleIds: sharedIds,
     );
+  }
+
+  static Set<String> _loadSharedArticleIds() {
+    final rawIds = PrefsUtil.getString(AppKeys.homeSharedArticleIds);
+    if (rawIds != null && rawIds.isNotEmpty) {
+      final decoded = jsonDecode(rawIds);
+      if (decoded is List<dynamic>) {
+        return decoded.whereType<String>().toSet();
+      }
+    }
+
+    final legacyId = PrefsUtil.getString(AppKeys.homeLastSharedArticleId);
+    if (legacyId != null && legacyId.isNotEmpty) {
+      return {legacyId};
+    }
+
+    return {};
   }
 
   static Future<void> save({
     required List<HomeArticleItem> articles,
-    String? lastSharedArticleId,
+    required Set<String> sharedArticleIds,
   }) async {
     final encoded = jsonEncode(articles.map((item) => item.toJson()).toList());
     await PrefsUtil.setString(AppKeys.homeArticles, encoded);
 
-    if (lastSharedArticleId == null || lastSharedArticleId.isEmpty) {
+    if (sharedArticleIds.isEmpty) {
+      await PrefsUtil.remove(AppKeys.homeSharedArticleIds);
       await PrefsUtil.remove(AppKeys.homeLastSharedArticleId);
-    } else {
-      await PrefsUtil.setString(
-        AppKeys.homeLastSharedArticleId,
-        lastSharedArticleId,
-      );
+      return;
     }
+
+    final idsEncoded = jsonEncode(sharedArticleIds.toList());
+    await PrefsUtil.setString(AppKeys.homeSharedArticleIds, idsEncoded);
+    await PrefsUtil.remove(AppKeys.homeLastSharedArticleId);
   }
 }
 
 class HomeArticleStoreSnapshot {
   const HomeArticleStoreSnapshot({
     required this.articles,
-    required this.lastSharedArticleId,
+    required this.sharedArticleIds,
   });
 
   final List<HomeArticleItem> articles;
-  final String? lastSharedArticleId;
+  final Set<String> sharedArticleIds;
 }

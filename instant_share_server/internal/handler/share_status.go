@@ -19,21 +19,19 @@ func toPublicShareStatus(status model.ShareStatus) model.PublicShareStatus {
 		})
 	}
 
+	articles := make([]model.PublicShareArticle, 0, len(status.Articles))
+	for _, article := range status.Articles {
+		articles = append(articles, model.PublicShareArticle{
+			ID:      article.ID,
+			Title:   article.Title,
+			Content: article.Content,
+		})
+	}
+
 	return model.PublicShareStatus{
 		Active:    status.Active,
 		SessionID: status.SessionID,
 		Files:     files,
-		Article:   toPublicShareArticle(status.Article),
-	}
-}
-
-func toPublicShareArticle(article *model.ShareArticle) *model.PublicShareArticle {
-	if article == nil {
-		return nil
-	}
-	return &model.PublicShareArticle{
-		ID:      article.ID,
-		Title:   article.Title,
-		Content: article.Content,
+		Articles:  articles,
 	}
 }

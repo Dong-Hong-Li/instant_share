@@ -10,6 +10,7 @@ import 'package:instant_share/infrastructure/share_server/share_server_exception
 /// - macOS：bundle `Contents/Resources/libinstantshare.dylib`（`copy_share_server.sh` 拷贝）。
 /// - Windows：与 exe 同目录的 `instantshare.dll`（CMake install 拷贝）。
 /// - Linux：与 exe 同目录的 `libinstantshare.so`。
+/// - Android：`jniLibs/<abi>/libinstantshare.so`（`build_lib.sh android`），按 soname 加载。
 ///
 /// 调试时可设置环境变量 `INSTANT_SHARE_SERVER_LIB` 指向库文件绝对路径。
 class EmbeddedServerLibraryLocator {
@@ -45,7 +46,6 @@ class EmbeddedServerLibraryLocator {
     }
 
     if (Platform.isAndroid) {
-      // TODO(android): 将 .so 放入 jniLibs/<abi>/ 后，按 soname 加载即可。
       return DynamicLibrary.open(_androidLibName);
     }
 

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:instant_share/features/home/data/home_article_input_scroll.dart';
+import 'package:instant_share/features/home/data/home_article_limits.dart';
 import 'package:instant_share/resource/color/color_value.dart';
 import 'package:instant_share/resource/screen_utils/font_size.dart';
 import 'package:instant_share/resource/screen_utils/layout_dimens_h.dart';
@@ -85,6 +87,15 @@ class HomeArticleCreateInput extends StatelessWidget {
                       scrollPhysics: const ClampingScrollPhysics(),
                       minLines: 2,
                       maxLines: 4,
+                      maxLength: HomeArticleLimits.maxContentLength,
+                      maxLengthEnforcement: MaxLengthEnforcement.enforced,
+                      buildCounter:
+                          (
+                            context, {
+                            required currentLength,
+                            required isFocused,
+                            maxLength,
+                          }) => null,
                       style: TextStyle(
                         fontSize: f14,
                         height: 1.5,

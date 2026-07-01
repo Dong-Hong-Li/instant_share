@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/legacy.dart';
+import 'package:instant_share/features/home/data/home_article_limits.dart';
 import 'package:instant_share/features/home/data/home_article_item.dart';
 import 'package:instant_share/features/home/data/home_article_store.dart';
 import 'package:instant_share/features/home/data/home_file_item.dart';
@@ -28,7 +29,7 @@ class HomeProvider extends ChangeNotifier {
 
   final ShareSessionService _session;
   final List<HomeFileItem> _selectedFiles = [];
-  HomeShareMode _shareMode = HomeShareMode.file;
+  HomeShareMode _shareMode = HomeShareMode.article;
 
   bool _syncStarted = false;
   bool _isShareBusy = false;
@@ -39,8 +40,7 @@ class HomeProvider extends ChangeNotifier {
   String? _serverShareUrl;
   List<String> _alternateShareUrls = const [];
   List<HomeArticleItem> _articles = [];
-  String? _sharedArticleId;
-  String? _lastSharedArticleId;
+  final Set<String> _selectedArticleIds = {};
 
   List<HomeFileItem> get selectedFiles => List.unmodifiable(_selectedFiles);
 
@@ -61,18 +61,18 @@ class HomeProvider extends ChangeNotifier {
 
   List<HomeArticleItem> get articles => List.unmodifiable(_articles);
 
-  String? get sharedArticleId => _sharedArticleId;
+  Set<String> get selectedArticleIds => Set.unmodifiable(_selectedArticleIds);
 
-  bool isArticleShared(String id) => _sharedArticleId == id;
+  /// 文章是否已被用户选中（本地标记，与服务是否开启无关）。
+  bool isArticleSelected(String id) => _selectedArticleIds.contains(id);
 
-  HomeArticleItem? get sharedArticle {
-    final id = _sharedArticleId;
-    if (id == null) return null;
-    for (final article in _articles) {
-      if (article.id == id) return article;
-    }
-    return null;
-  }
+  /// 文章是否处于「已分享」展示态（仅服务开启且已选中时为 true）。
+  bool isArticleShared(String id) =>
+      _isSharing && _selectedArticleIds.contains(id);
+
+  List<HomeArticleItem> get selectedArticles => _articles
+      .where((article) => _selectedArticleIds.contains(article.id))
+      .toList(growable: false);
 
   String? get shareUrl => _shareUrl;
 
@@ -114,13 +114,13 @@ class HomeProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// 创建文章；正文为空时返回 null。
+  /// 创建文章；正文为空或超过 [HomeArticleLimits.maxContentLength] 时返回 null。
   Future<HomeArticleItem?> createArticle({
     required String title,
     required String content,
   }) async {
     final body = content.trim();
-    if (body.isEmpty) return null;
+    if (!HomeArticleLimits.isContentLengthValid(body)) return null;
 
     final article = HomeArticleItem(
       id: _uuid.v4(),
@@ -139,17 +139,11 @@ class HomeProvider extends ChangeNotifier {
     if (index == -1) return;
     _articles.removeAt(index);
 
-    final wasShared = _sharedArticleId == id;
-    if (wasShared) {
-      _sharedArticleId = null;
-    }
-    if (_lastSharedArticleId == id) {
-      _lastSharedArticleId = null;
-    }
+    final wasSelected = _selectedArticleIds.remove(id);
 
     await _persistArticles();
-    if (wasShared && _isSharing) {
-      await _syncSharedArticleToServer();
+    if (wasSelected && _isSharing) {
+      await _syncSharedArticlesToServer();
     }
     notifyListeners();
   }
@@ -168,29 +162,29 @@ class HomeProvider extends ChangeNotifier {
     return true;
   }
 
-  /// 分享服务开启后，点击文章切换「已分享 / 未分享」。
+  /// 切换文章选中态；服务开启时会同步到接收端。
   ///
-  /// 返回 null 表示服务未开启；true/false 表示切换后的分享态。
+  /// 返回切换后的选中态；文章不存在时返回 null。
   Future<bool?> toggleArticleShared(String id) async {
-    if (!_isSharing) return null;
-
     final exists = _articles.any((item) => item.id == id);
     if (!exists) return null;
 
-    if (_sharedArticleId == id) {
-      _sharedArticleId = null;
-      _lastSharedArticleId = null;
+    if (_selectedArticleIds.contains(id)) {
+      _selectedArticleIds.remove(id);
     } else {
-      _sharedArticleId = id;
-      _lastSharedArticleId = id;
+      final article = _articles.firstWhere((item) => item.id == id);
+      if (article.charCount > HomeArticleLimits.maxContentLength) {
+        return null;
+      }
+      _selectedArticleIds.add(id);
     }
 
     await _persistArticles();
     notifyListeners();
     if (_isSharing) {
-      await _syncSharedArticleToServer();
+      await _syncSharedArticlesToServer();
     }
-    return _sharedArticleId == id;
+    return _selectedArticleIds.contains(id);
   }
 
   /// 启动时同步：若 Go 端仍有遗留分享会话则自动 stop；恢复本地文章列表。
@@ -218,18 +212,18 @@ class HomeProvider extends ChangeNotifier {
   Future<void> _loadArticlesFromStorage() async {
     final snapshot = await HomeArticleStore.load();
     _articles = List<HomeArticleItem>.from(snapshot.articles);
-    _lastSharedArticleId = snapshot.lastSharedArticleId;
+    _selectedArticleIds
+      ..clear()
+      ..addAll(snapshot.sharedArticleIds);
 
-    final lastId = _lastSharedArticleId;
-    if (lastId != null && _articles.any((item) => item.id == lastId)) {
-      _sharedArticleId = lastId;
-    }
+    final validIds = _articles.map((item) => item.id).toSet();
+    _selectedArticleIds.removeWhere((id) => !validIds.contains(id));
   }
 
   Future<void> _persistArticles() {
     return HomeArticleStore.save(
       articles: _articles,
-      lastSharedArticleId: _lastSharedArticleId,
+      sharedArticleIds: _selectedArticleIds,
     );
   }
 
@@ -370,8 +364,8 @@ class HomeProvider extends ChangeNotifier {
       final status = await _session.startShare(_selectedFiles);
       _isSharing = status.active;
       _shareUrl = _resolveShareUrl(status);
-      if (_isSharing && _sharedArticleId != null) {
-        await _syncSharedArticleToServer();
+      if (_isSharing && _selectedArticleIds.isNotEmpty) {
+        await _syncSharedArticlesToServer();
       }
     } catch (error, stackTrace) {
       _isSharing = false;
@@ -407,18 +401,26 @@ class HomeProvider extends ChangeNotifier {
     }
   }
 
-  Future<void> _syncSharedArticleToServer() async {
+  Future<void> _syncSharedArticlesToServer() async {
     if (!_isSharing) return;
 
     try {
-      final article = sharedArticle;
-      await _session.syncArticle(
-        id: article?.id,
-        title: article?.title ?? '',
-        content: article?.content ?? '',
-      );
+      final articles = selectedArticles
+          .where(
+            (article) =>
+                article.charCount <= HomeArticleLimits.maxContentLength,
+          )
+          .map(
+            (article) => ShareArticleDto(
+              id: article.id,
+              title: article.title,
+              content: article.content,
+            ),
+          )
+          .toList();
+      await _session.syncArticles(articles);
     } catch (error, stackTrace) {
-      debugPrint('[HomeProvider] syncArticle failed: $error\n$stackTrace');
+      debugPrint('[HomeProvider] syncArticles failed: $error\n$stackTrace');
     }
   }
 

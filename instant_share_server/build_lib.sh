@@ -6,11 +6,49 @@
 #   ./build_lib.sh macos      # macOS 通用库 (arm64 + x86_64)
 #   ./build_lib.sh windows    # Windows amd64 DLL（macOS/Linux 需 mingw-w64 交叉编译）
 #   ./build_lib.sh linux      # Linux amd64 .so
+#   ./build_lib.sh android    # Android arm64-v8a / armeabi-v7a / x86_64 .so
 #
-# 产物默认输出到 ../assets/<platform>/，由 pubspec assets 打包。
+# 产物默认输出到 ../assets/lib/ 或 ../android/app/src/main/jniLibs/<abi>/。
 set -e
 
 cd "$(dirname "$0")"
+
+_resolve_ndk_root() {
+  if [ -n "${ANDROID_NDK_HOME:-}" ] && [ -d "$ANDROID_NDK_HOME" ]; then
+    echo "$ANDROID_NDK_HOME"
+    return 0
+  fi
+
+  ndk_base=""
+  if [ -n "${ANDROID_HOME:-}" ] && [ -d "$ANDROID_HOME/ndk" ]; then
+    ndk_base="$ANDROID_HOME/ndk"
+  elif [ -d "$HOME/Library/Android/sdk/ndk" ]; then
+    ndk_base="$HOME/Library/Android/sdk/ndk"
+  else
+    return 1
+  fi
+
+  latest="$(ls -1 "$ndk_base" | sort -V | tail -1)"
+  if [ -z "$latest" ]; then
+    return 1
+  fi
+  echo "$ndk_base/$latest"
+}
+
+_build_android_abi() {
+  abi="$1"
+  goarch="$2"
+  clang="$3"
+  out_dir="$4"
+
+  mkdir -p "$out_dir"
+  OUT="$out_dir/libinstantshare.so"
+
+  echo "[build_lib] Android $abi ..."
+  CGO_ENABLED=1 GOOS=android GOARCH="$goarch" CC="$clang" \
+    go build -buildmode=c-shared -o "$OUT" "$PKG"
+  rm -f "$out_dir/libinstantshare.h"
+}
 
 echo "[build_lib] building web frontend ..."
 ./build_web.sh
@@ -98,10 +136,35 @@ case "$PLATFORM" in
     rm -f "$OUT_DIR/libinstantshare.h"
     echo "[build_lib] done -> $OUT"
     ;;
-  #
-  # TODO(android): 用 NDK 工具链分别构建 arm64-v8a/armeabi-v7a/x86_64 .so，
-  #   放入 android/app/src/main/jniLibs/<abi>/libinstantshare.so
-  #   (或改用 gomobile bind 生成 .aar)。
+
+  android)
+    NDK="$(_resolve_ndk_root)" || {
+      echo "[build_lib] 未找到 Android NDK。" >&2
+      echo "  设置 ANDROID_NDK_HOME 或安装 Android Studio NDK" >&2
+      exit 1
+    }
+
+    MIN_SDK="${ANDROID_MIN_SDK:-21}"
+    case "$(uname -s)" in
+      Darwin) PREBUILT="darwin-x86_64" ;;
+      Linux) PREBUILT="linux-x86_64" ;;
+      MINGW*|MSYS*|CYGWIN*) PREBUILT="windows-x86_64" ;;
+      *) PREBUILT="linux-x86_64" ;;
+    esac
+
+    BIN="$NDK/toolchains/llvm/prebuilt/$PREBUILT/bin"
+    JNI_BASE="../android/app/src/main/jniLibs"
+
+    _build_android_abi arm64-v8a arm64 \
+      "$BIN/aarch64-linux-android${MIN_SDK}-clang" "$JNI_BASE/arm64-v8a"
+    _build_android_abi armeabi-v7a arm \
+      "$BIN/armv7a-linux-androideabi${MIN_SDK}-clang" "$JNI_BASE/armeabi-v7a"
+    _build_android_abi x86_64 amd64 \
+      "$BIN/x86_64-linux-android${MIN_SDK}-clang" "$JNI_BASE/x86_64"
+
+    echo "[build_lib] done -> $JNI_BASE/{arm64-v8a,armeabi-v7a,x86_64}/libinstantshare.so"
+    ;;
+
   #
   # TODO(ios): 改用 c-archive 生成 .a 静态库并链接进 Runner：
   #   CGO_ENABLED=1 GOOS=ios GOARCH=arm64 \

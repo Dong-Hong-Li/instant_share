@@ -33,18 +33,9 @@ class ShareSessionService {
     return client.syncShare(files.map(_toShareFile).toList());
   }
 
-  Future<ShareStatusDto> syncArticle({
-    required String? id,
-    required String title,
-    required String content,
-  }) async {
+  Future<ShareStatusDto> syncArticles(List<ShareArticleDto> articles) async {
     final client = await _ensureClient();
-    if (id == null) {
-      return client.syncArticle(null);
-    }
-    return client.syncArticle(
-      ShareArticleDto(id: id, title: title, content: content),
-    );
+    return client.syncArticles(articles);
   }
 
   Future<void> disconnect() async {

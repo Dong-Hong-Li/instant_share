@@ -7,12 +7,15 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"unicode/utf8"
 
 	"instant_share/server/internal/model"
 	"instant_share/server/internal/util"
 
 	"github.com/google/uuid"
 )
+
+const maxArticleContentLength = 2000
 
 var (
 	ErrShareNotActive = errors.New("share is not active")
@@ -36,9 +39,10 @@ func NewShareService(host string, port int) *ShareService {
 		host: host,
 		port: port,
 		status: model.ShareStatus{
-			Active: false,
-			Port:   port,
-			Files:  []model.ShareFile{},
+			Active:   false,
+			Port:     port,
+			Files:    []model.ShareFile{},
+			Articles: []model.ShareArticle{},
 		},
 	}
 }
@@ -80,6 +84,7 @@ func (s *ShareService) Start(req model.StartShareRequest) (model.ShareStatus, er
 		BaseURL:   fmt.Sprintf("http://%s:%d/share", ip, port),
 		StartedAt: &startedAt,
 		Files:     files,
+		Articles:  []model.ShareArticle{},
 	}
 	s.port = port
 
@@ -104,8 +109,8 @@ func (s *ShareService) SyncFiles(files []model.ShareFile) (model.ShareStatus, er
 	return cloneStatus(s.status), nil
 }
 
-// SyncArticle 分享进行中同步/清除当前文章。
-func (s *ShareService) SyncArticle(article *model.ShareArticle) (model.ShareStatus, error) {
+// SyncArticles 分享进行中同步文章列表（增删文章）。
+func (s *ShareService) SyncArticles(articles []model.ShareArticle) (model.ShareStatus, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -113,26 +118,12 @@ func (s *ShareService) SyncArticle(article *model.ShareArticle) (model.ShareStat
 		return s.status, ErrShareNotActive
 	}
 
-	if article == nil {
-		s.status.Article = nil
-		return cloneStatus(s.status), nil
+	normalized, err := normalizeArticles(articles)
+	if err != nil {
+		return s.status, err
 	}
 
-	content := strings.TrimSpace(article.Content)
-	if content == "" {
-		return s.status, fmt.Errorf("article content is required")
-	}
-
-	id := strings.TrimSpace(article.ID)
-	if id == "" {
-		id = uuid.NewString()
-	}
-
-	s.status.Article = &model.ShareArticle{
-		ID:      id,
-		Title:   strings.TrimSpace(article.Title),
-		Content: content,
-	}
+	s.status.Articles = normalized
 	return cloneStatus(s.status), nil
 }
 
@@ -163,10 +154,10 @@ func (s *ShareService) FileByID(id string) (model.ShareFile, bool) {
 
 func (s *ShareService) resetLocked() {
 	s.status = model.ShareStatus{
-		Active:  false,
-		Port:    s.port,
-		Files:   []model.ShareFile{},
-		Article: nil,
+		Active:   false,
+		Port:     s.port,
+		Files:    []model.ShareFile{},
+		Articles: []model.ShareArticle{},
 	}
 }
 
@@ -206,13 +197,43 @@ func normalizeFiles(files []model.ShareFile) ([]model.ShareFile, error) {
 	return result, nil
 }
 
+func normalizeArticles(articles []model.ShareArticle) ([]model.ShareArticle, error) {
+	if len(articles) == 0 {
+		return []model.ShareArticle{}, nil
+	}
+
+	result := make([]model.ShareArticle, 0, len(articles))
+	for _, article := range articles {
+		content := strings.TrimSpace(article.Content)
+		if content == "" {
+			return nil, fmt.Errorf("article content is required")
+		}
+		if utf8.RuneCountInString(content) > maxArticleContentLength {
+			return nil, fmt.Errorf("article content exceeds %d characters", maxArticleContentLength)
+		}
+
+		id := strings.TrimSpace(article.ID)
+		if id == "" {
+			id = uuid.NewString()
+		}
+
+		result = append(result, model.ShareArticle{
+			ID:      id,
+			Title:   strings.TrimSpace(article.Title),
+			Content: content,
+		})
+	}
+	return result, nil
+}
+
 func cloneStatus(status model.ShareStatus) model.ShareStatus {
 	files := make([]model.ShareFile, len(status.Files))
 	copy(files, status.Files)
 	status.Files = files
-	if status.Article != nil {
-		article := *status.Article
-		status.Article = &article
-	}
+
+	articles := make([]model.ShareArticle, len(status.Articles))
+	copy(articles, status.Articles)
+	status.Articles = articles
+
 	return status
 }

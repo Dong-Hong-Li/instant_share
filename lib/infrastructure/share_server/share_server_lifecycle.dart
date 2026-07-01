@@ -28,7 +28,8 @@ class _ShareServerLifecycleState extends State<ShareServerLifecycle>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.detached && CommonContext.isDesktop) {
+    if (state == AppLifecycleState.detached &&
+        (CommonContext.isDesktop || CommonContext.isAndroid)) {
       EmbeddedServerRuntime.instance.stop();
     }
   }

@@ -58,12 +58,12 @@ class ShareStatusDto {
   const ShareStatusDto({
     required this.active,
     required this.files,
+    required this.articles,
     this.sessionId,
     this.baseUrl,
     this.ip,
     this.port,
     this.startedAt,
-    this.article,
   });
 
   final bool active;
@@ -73,7 +73,7 @@ class ShareStatusDto {
   final int? port;
   final DateTime? startedAt;
   final List<ShareFileDto> files;
-  final ShareArticleDto? article;
+  final List<ShareArticleDto> articles;
 
   factory ShareStatusDto.fromJson(Map<String, dynamic> json) {
     final rawFiles = json['files'];
@@ -90,11 +90,7 @@ class ShareStatusDto {
       startedAt = DateTime.tryParse(rawStartedAt);
     }
 
-    ShareArticleDto? article;
-    final rawArticle = json['article'];
-    if (rawArticle is Map<String, dynamic>) {
-      article = ShareArticleDto.fromJson(rawArticle);
-    }
+    final articles = _parseArticles(json);
 
     return ShareStatusDto(
       active: json['active'] as bool? ?? false,
@@ -104,17 +100,36 @@ class ShareStatusDto {
       port: (json['port'] as num?)?.toInt(),
       startedAt: startedAt,
       files: files,
-      article: article,
+      articles: articles,
     );
+  }
+
+  static List<ShareArticleDto> _parseArticles(Map<String, dynamic> json) {
+    final rawArticles = json['articles'];
+    if (rawArticles is List) {
+      return rawArticles
+          .whereType<Map<String, dynamic>>()
+          .map(ShareArticleDto.fromJson)
+          .toList();
+    }
+
+    final rawArticle = json['article'];
+    if (rawArticle is Map<String, dynamic>) {
+      return [ShareArticleDto.fromJson(rawArticle)];
+    }
+
+    return const <ShareArticleDto>[];
   }
 }
 
 class SyncArticleRequestDto {
-  const SyncArticleRequestDto({this.article});
+  const SyncArticleRequestDto({required this.articles});
 
-  final ShareArticleDto? article;
+  final List<ShareArticleDto> articles;
 
-  Map<String, dynamic> toJson() => {'article': article?.toJson()};
+  Map<String, dynamic> toJson() => {
+    'articles': articles.map((article) => article.toJson()).toList(),
+  };
 }
 
 class StartShareRequestDto {

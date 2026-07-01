@@ -78,10 +78,10 @@ class ShareWsAdminClient {
     return _parseShareStatus(response, WsFrameType.shareSyncAck);
   }
 
-  Future<ShareStatusDto> syncArticle(ShareArticleDto? article) async {
+  Future<ShareStatusDto> syncArticles(List<ShareArticleDto> articles) async {
     final response = await _client.request(
       WsFrameType.shareArticleSync,
-      data: SyncArticleRequestDto(article: article).toJson(),
+      data: SyncArticleRequestDto(articles: articles).toJson(),
     );
     return _parseShareStatus(response, WsFrameType.shareArticleSyncAck);
   }

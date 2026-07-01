@@ -155,7 +155,7 @@ Future<void> _initializeApp() async {
     },
   );
 
-  if (CommonContext.isDesktop) {
+  if (CommonContext.isDesktop || CommonContext.isAndroid) {
     manager.addTask(
       name: 'share_server',
       critical: true,
@@ -182,7 +182,11 @@ Future<void> _initializeApp() async {
 
   const critical = ['router_init', 'share_server'];
   for (final name in critical) {
-    if (name == 'share_server' && !CommonContext.isDesktop) continue;
+    if (name == 'share_server' &&
+        !CommonContext.isDesktop &&
+        !CommonContext.isAndroid) {
+      continue;
+    }
     final r = results[name];
     if (r != null && !r.isSuccess) {
       debugPrint('[Init] 关键任务失败: $name, error=${r.error}');

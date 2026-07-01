@@ -5,5 +5,8 @@ class AppKeys {
 
   static const String homeArticles = 'homeArticles';
 
+  static const String homeSharedArticleIds = 'homeSharedArticleIds';
+
+  @Deprecated('Use homeSharedArticleIds')
   static const String homeLastSharedArticleId = 'homeLastSharedArticleId';
 }

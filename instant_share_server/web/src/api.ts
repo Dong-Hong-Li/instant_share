@@ -16,7 +16,7 @@ export interface ShareStatus {
   active: boolean;
   session_id?: string;
   files: ShareFile[];
-  article?: ShareArticle | null;
+  articles: ShareArticle[];
 }
 
 export interface APIResponse<T> {
@@ -25,16 +25,33 @@ export interface APIResponse<T> {
   data?: T;
 }
 
+function normalizeArticles(data: ShareStatus & { article?: ShareArticle | null }): ShareArticle[] {
+  if (Array.isArray(data.articles)) {
+    return data.articles;
+  }
+  if (data.article) {
+    return [data.article];
+  }
+  return [];
+}
+
 export async function fetchShareStatus(): Promise<ShareStatus> {
   const response = await fetch("/api/v1/share/status");
   if (!response.ok) {
     throw new Error(`HTTP ${response.status}`);
   }
 
-  const payload = (await response.json()) as APIResponse<ShareStatus>;
+  const payload = (await response.json()) as APIResponse<
+    ShareStatus & { article?: ShareArticle | null }
+  >;
   if (!payload.ok || !payload.data) {
     throw new Error(payload.message ?? "加载分享状态失败");
   }
 
-  return payload.data;
+  return {
+    active: payload.data.active,
+    session_id: payload.data.session_id,
+    files: payload.data.files ?? [],
+    articles: normalizeArticles(payload.data),
+  };
 }

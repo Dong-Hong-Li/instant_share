@@ -13,9 +13,7 @@ class HomeArticleHelpHint extends StatelessWidget {
 
   static const _steps = [
     '在下方输入框填写内容，回车或点击 + 创建文章',
-    '前往「分享文件」页开启分享服务',
-    '服务开启后点击文章卡片，切换「已分享」状态',
-    '下次启动会自动恢复上次标记为已分享的文章',
+    '点击文章卡片可多选待分享内容（蓝色为已选中，绿色为分享中）',
   ];
 
   @override
@@ -36,11 +34,7 @@ class HomeArticleHelpHint extends StatelessWidget {
           child: SizedBox(
             width: w32,
             height: w32,
-            child: Icon(
-              Icons.help_outline,
-              size: f18,
-              color: iconColor,
-            ),
+            child: Icon(Icons.help_outline, size: f18, color: iconColor),
           ),
         ),
       ),
