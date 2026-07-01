@@ -7,6 +7,7 @@ import 'package:instant_share/routes/router_config.router.g.dart';
 import 'package:state_scope/state_scope.dart';
 import 'package:instant_share/core/config/common.dart';
 import 'package:instant_share/core/config/desktop_window_config.dart';
+import 'package:instant_share/core/config/screen_design_config.dart';
 import 'package:instant_share/core/controller/app_theme_controller.dart';
 import 'package:instant_share/routes/app_router_observer.dart';
 import 'package:instant_share/routes/router_config.dart';
@@ -58,7 +59,7 @@ class MyApp extends StatelessWidget {
     return ControllerBuilder<AppThemeController>(
       builder: (controller) {
         return ScreenUtilInit(
-          designSize: const Size(900, 700),
+          designSize: ScreenDesignConfig.designSize,
           minTextAdapt: true,
           splitScreenMode: true,
           ensureScreenSize: true,

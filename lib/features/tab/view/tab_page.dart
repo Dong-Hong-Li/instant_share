@@ -6,8 +6,11 @@ import 'package:instant_share/core/ui/platform_state_factory.dart';
 import 'package:instant_share/features/config/view/config_page.dart';
 import 'package:instant_share/features/home/provider/provider.dart';
 import 'package:instant_share/features/home/view/home_share_page.dart';
+import 'package:instant_share/features/home/widget/home_share_page_shell.dart';
 import 'package:instant_share/features/link/view/link_page.dart';
 import 'package:instant_share/features/setting/view/setting_page.dart';
+import 'package:instant_share/core/ui/widget/shell/app_page_shell.dart';
+import 'package:instant_share/core/ui/widget/shell/tab_nav_config.dart';
 import 'package:instant_share/features/tab/widget/tab_sidebar.dart';
 import 'package:instant_share/infrastructure/share_server/embedded_server_runtime.dart';
 import 'package:instant_share/resource/color/color_value.dart';
@@ -17,6 +20,7 @@ import 'package:window_manager/window_manager.dart';
 part 'tab_page_mixin.dart';
 part 'tab_page_pc.dart';
 part 'tab_page_app.dart';
+part 'tab_page_app_mixin.dart';
 
 @RouterAnnotation(path: RootPath.home, description: '首页')
 class TabPage extends StatefulWidget {

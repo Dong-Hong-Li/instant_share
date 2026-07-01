@@ -25,6 +25,7 @@ import 'package:instant_share/resource/color/color_value.dart';
 import 'package:instant_share/resource/color/home_palette.dart';
 import 'package:instant_share/resource/screen_utils/font_size.dart';
 import 'package:instant_share/resource/screen_utils/layout_dimens_h.dart';
+import 'package:instant_share/resource/screen_utils/layout_dimens_s.dart';
 import 'package:instant_share/resource/screen_utils/layout_dimens_w.dart';
 import 'package:window_manager/window_manager.dart';
 

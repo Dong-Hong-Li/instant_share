@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:instant_share/core/config/screen_design_config.dart';
 import 'package:instant_share/resource/screen_utils/layout_dimens_h.dart';
 import 'package:window_manager/window_manager.dart';
 
@@ -10,9 +11,10 @@ class DesktopWindowConfig {
   DesktopWindowConfig._();
 
   /// 与 ScreenUtilInit designSize 保持一致（横向桌面布局）
-  static const double designWidth = 900;
-  static const double designHeight = 700;
-  static const double designAspectRatio = designWidth / designHeight;
+  static final double designWidth = ScreenDesignConfig.desktopDesignSize.width;
+  static final double designHeight =
+      ScreenDesignConfig.desktopDesignSize.height;
+  static final double designAspectRatio = designWidth / designHeight;
 
   /// 窗口高度占主屏高度比例
   static const double heightRatio = 0.68;

@@ -1,7 +1,7 @@
 part of 'tab_page.dart';
 
 class _TabPagePcState extends BaseStatePage<TabPage>
-    with WindowListener, TabPageMixin {
+    with WindowListener, TabPagePcMixin {
   bool _windowListenerAttached = false;
 
   @override

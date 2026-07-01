@@ -10,6 +10,9 @@ import 'package:instant_share/features/home/data/home_article_store.dart';
 import 'package:instant_share/features/home/data/home_file_item.dart';
 import 'package:instant_share/features/home/data/home_share_mode.dart';
 import 'package:instant_share/infrastructure/file_picker_manager.dart';
+import 'package:instant_share/infrastructure/network/lan_ip_unavailable_exception.dart';
+import 'package:instant_share/infrastructure/network/lan_ip_resolver.dart';
+import 'package:instant_share/infrastructure/network/share_url_resolver.dart';
 import 'package:instant_share/infrastructure/share_server/embedded_server_runtime.dart';
 import 'package:instant_share/infrastructure/share_server/share_server_config.dart';
 import 'package:instant_share/infrastructure/share_server/share_server_health.dart';
@@ -18,7 +21,10 @@ import 'package:instant_share/infrastructure/websocket/ws_share_models.dart';
 import 'package:uuid/uuid.dart';
 
 class HomeProvider extends ChangeNotifier {
-  HomeProvider(this._session) {
+  HomeProvider(this._session, {ShareUrlResolver? shareUrlResolver})
+    : _shareUrlResolver = shareUrlResolver ?? ShareUrlResolver(
+        lanIpResolver: createLanIpResolver(),
+      ) {
     final port = EmbeddedServerRuntime.instance.port;
     if (port != null) {
       _serverPort = port;
@@ -28,8 +34,9 @@ class HomeProvider extends ChangeNotifier {
   static const _uuid = Uuid();
 
   final ShareSessionService _session;
+  final ShareUrlResolver _shareUrlResolver;
   final List<HomeFileItem> _selectedFiles = [];
-  HomeShareMode _shareMode = HomeShareMode.article;
+  HomeShareMode _shareMode = HomeShareMode.file;
 
   bool _syncStarted = false;
   bool _isShareBusy = false;
@@ -41,6 +48,7 @@ class HomeProvider extends ChangeNotifier {
   List<String> _alternateShareUrls = const [];
   List<HomeArticleItem> _articles = [];
   final Set<String> _selectedArticleIds = {};
+  String? _errorMessage;
 
   List<HomeFileItem> get selectedFiles => List.unmodifiable(_selectedFiles);
 
@@ -81,6 +89,20 @@ class HomeProvider extends ChangeNotifier {
   String? get serverShareUrl => _serverShareUrl;
 
   List<String> get alternateShareUrls => _alternateShareUrls;
+
+  /// 最近一次分享/地址解析失败的用户可读提示（展示后应 [clearErrorMessage]）。
+  String? get errorMessage => _errorMessage;
+
+  void clearErrorMessage() {
+    if (_errorMessage == null) return;
+    _errorMessage = null;
+    notifyListeners();
+  }
+
+  void _setErrorMessage(String? message) {
+    if (_errorMessage == message) return;
+    _errorMessage = message;
+  }
 
   bool get hasServerInfo =>
       _serverPort != null ||
@@ -196,7 +218,7 @@ class HomeProvider extends ChangeNotifier {
       await _loadArticlesFromStorage();
 
       final health = await _session.fetchHealth();
-      _applyServerHealth(health);
+      await _applyServerHealth(health);
 
       if (health.share.active) {
         await _session.stopShare();
@@ -205,6 +227,7 @@ class HomeProvider extends ChangeNotifier {
       }
       notifyListeners();
     } catch (error, stackTrace) {
+      _handleShareError(error);
       debugPrint('[HomeProvider] syncOnStartup failed: $error\n$stackTrace');
     }
   }
@@ -227,10 +250,18 @@ class HomeProvider extends ChangeNotifier {
     );
   }
 
-  void _applyServerHealth(ShareServerHealthDto health) {
+  Future<void> _applyServerHealth(ShareServerHealthDto health) async {
     _serverPort = health.port;
-    _serverShareUrl = health.shareUrl;
-    _alternateShareUrls = health.alternateShareUrls;
+    try {
+      final resolved = await _shareUrlResolver.resolveFromHealth(health);
+      _serverShareUrl = resolved.primaryUrl;
+      _alternateShareUrls = resolved.alternateUrls;
+      _setErrorMessage(null);
+    } catch (error) {
+      _serverShareUrl = null;
+      _alternateShareUrls = const [];
+      _handleShareError(error);
+    }
   }
 
   /// 切换分享开关（开始 / 停止分享）。
@@ -259,16 +290,18 @@ class HomeProvider extends ChangeNotifier {
     }
   }
 
-  String? _resolveShareUrl(ShareStatusDto status) {
-    final baseUrl = status.baseUrl?.trim();
-    if (baseUrl != null && baseUrl.isNotEmpty) return baseUrl;
+  Future<String> _resolveShareUrlAsync(ShareStatusDto status) async {
+    final resolved = await _shareUrlResolver.resolveFromStatus(status);
+    return resolved.primaryUrl;
+  }
 
-    final ip = status.ip?.trim();
-    final port = status.port;
-    if (ip != null && ip.isNotEmpty && port != null) {
-      return 'http://$ip:$port/share';
-    }
-    return null;
+  void _handleShareError(Object error) {
+    final message = switch (error) {
+      LanIpUnavailableException(:final message) => message,
+      _ => error.toString(),
+    };
+    _setErrorMessage(message);
+    notifyListeners();
   }
 
   Future<void> pickFiles() async {
@@ -362,14 +395,29 @@ class HomeProvider extends ChangeNotifier {
 
     try {
       final status = await _session.startShare(_selectedFiles);
-      _isSharing = status.active;
-      _shareUrl = _resolveShareUrl(status);
-      if (_isSharing && _selectedArticleIds.isNotEmpty) {
-        await _syncSharedArticlesToServer();
+      if (!status.active) {
+        _isSharing = false;
+        _shareUrl = null;
+        return;
+      }
+
+      try {
+        _shareUrl = await _resolveShareUrlAsync(status);
+        _isSharing = true;
+        _setErrorMessage(null);
+        if (_selectedArticleIds.isNotEmpty) {
+          await _syncSharedArticlesToServer();
+        }
+      } catch (error) {
+        await _session.stopShare();
+        _isSharing = false;
+        _shareUrl = null;
+        _handleShareError(error);
       }
     } catch (error, stackTrace) {
       _isSharing = false;
       _shareUrl = null;
+      _handleShareError(error);
       debugPrint('[HomeProvider] startShare failed: $error\n$stackTrace');
     } finally {
       _isShareBusy = false;

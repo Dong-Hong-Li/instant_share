@@ -1,7 +1,7 @@
 part of 'tab_page.dart';
 
-/// PC 端 Tab 壳层布局（左侧边栏），App 端见 [TabPageAppMixin]。
-mixin TabPagePcMixin on BaseStatePage<TabPage> {
+/// App 端 Tab 壳层（[AppPageShell] + 底部 [BottomTabBarView]），与 PC 侧栏分离。
+mixin TabPageAppMixin on BaseStatePage<TabPage> {
   TabSidebarItem tab = TabSidebarItem.home;
 
   void syncTab(HomeProvider home) {
@@ -30,8 +30,13 @@ mixin TabPagePcMixin on BaseStatePage<TabPage> {
     );
   }
 
-  Widget buildTabBody(ColorValue colorValue, HomeProvider home, double topInset) {
-    return switch (tab) {
+  Widget buildTabPage(
+    TabSidebarItem item,
+    ColorValue colorValue,
+    HomeProvider home,
+    double topInset,
+  ) {
+    return switch (item) {
       TabSidebarItem.home => HomeSharePage(
         colorValue: colorValue,
         provider: home,
@@ -43,7 +48,11 @@ mixin TabPagePcMixin on BaseStatePage<TabPage> {
     };
   }
 
-  Widget buildTabSidebarLayout({
+  TabNavItem _toNavItem(TabSidebarItem item) =>
+      TabNavItem(icon: item.icon, label: item.label);
+
+  /// App 竖屏壳层：[CrossFadeSwitcher] 切换 + shell 底栏导航。
+  Widget buildTabBottomNavLayout({
     required ColorValue colorValue,
     required HomeProvider home,
     required double topInset,
@@ -53,23 +62,19 @@ mixin TabPagePcMixin on BaseStatePage<TabPage> {
       setState(() => tab = TabSidebarItem.home);
     }
 
+    final activeIndex = visibleTabs.indexOf(tab);
+    final navItems = visibleTabs.map(_toNavItem).toList(growable: false);
+    final pages = visibleTabs
+        .map((item) => buildTabPage(item, colorValue, home, topInset))
+        .toList(growable: false);
+
     return buildTabGradientShell(
       home: home,
-      child: SizedBox.expand(
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            TabSidebar(
-              colorValue: colorValue,
-              sharing: home.isSharing,
-              visibleTabs: visibleTabs,
-              selected: tab,
-              onSelected: (value) => setState(() => tab = value),
-              topPadding: topInset,
-            ),
-            Expanded(child: buildTabBody(colorValue, home, topInset)),
-          ],
-        ),
+      child: AppPageShell(
+        activeIndex: activeIndex,
+        onTabSelected: (index) => setState(() => tab = visibleTabs[index]),
+        tabItems: navItems,
+        pages: pages,
       ),
     );
   }
