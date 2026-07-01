@@ -1,18 +1,19 @@
-name: Build Desktop
+name: Build Release
 
 # Tag 触发（正式发版）：
-#   - 格式：v{version}-{windows|macos|linux}，例如 v1.0.0-windows
+#   - 格式：v{version}-{windows|macos|linux|android}，例如 v1.0.0-windows
 #   - 重要：workflow 文件必须在 default 分支（main）上，仅推 test 分支不会触发 tag CI
 #   - 开发流程：test 验证 → 合并 workflow 到 main → 打 tag 并 push
 #
 # 手动触发（test 分支调试）：
-#   Actions → Build Desktop → Run workflow → 选 test 分支 + platform
+#   Actions → Build Release → Run workflow → 选 test 分支 + platform
 on:
   push:
     tags:
       - "*-windows"
       - "*-macos"
       - "*-linux"
+      - "*-android"
   workflow_dispatch:
     inputs:
       platform:
@@ -23,6 +24,7 @@ on:
           - windows
           - macos
           - linux
+          - android
       version:
         description: Version label for artifact name
         required: true
@@ -294,6 +296,103 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: instant_share-linux-x64
+          path: ${{ env.ARCHIVE }}
+          retention-days: 30
+
+      - name: Upload to GitHub Release
+        if: github.event_name == 'push'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.RELEASE_TAG }}
+          files: ${{ env.ARCHIVE }}
+          generate_release_notes: true
+
+  build-android:
+    if: |
+      (github.event_name == 'push' && endsWith(github.ref_name, '-android')) ||
+      (github.event_name == 'workflow_dispatch' && inputs.platform == 'android')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Resolve version
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "VERSION=${{ inputs.version }}" >> "$GITHUB_ENV"
+            echo "RELEASE_TAG=v${{ inputs.version }}" >> "$GITHUB_ENV"
+          else
+            TAG="${{ github.ref_name }}"
+            if [[ ! "$TAG" =~ ^v(.+)-android$ ]]; then
+              echo "::error::Tag 格式须为 v{version}-android，例如 v1.0.0-android"
+              exit 1
+            fi
+            echo "VERSION=${BASH_REMATCH[1]}" >> "$GITHUB_ENV"
+            echo "RELEASE_TAG=v${BASH_REMATCH[1]}" >> "$GITHUB_ENV"
+          fi
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.25.x"
+          cache-dependency-path: instant_share_server/go.sum
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Setup Android NDK
+        run: |
+          SDK="${ANDROID_HOME:-/usr/local/lib/android/sdk}"
+          echo "ANDROID_HOME=${SDK}" >> "$GITHUB_ENV"
+          yes | sdkmanager --licenses >/dev/null || true
+          sdkmanager --install "ndk;28.2.13676358"
+          echo "ANDROID_NDK_HOME=${SDK}/ndk/28.2.13676358" >> "$GITHUB_ENV"
+
+      - name: Build Go c-shared library
+        working-directory: instant_share_server
+        run: ./build_lib.sh android
+
+      - name: Flutter pub get
+        run: flutter pub get
+
+      - name: Build Android release APK
+        run: flutter build apk --release --split-per-abi
+
+      - name: Verify output
+        run: |
+          OUT="build/app/outputs/flutter-apk"
+          test -f "$OUT/app-arm64-v8a-release.apk" || exit 1
+          test -f "$OUT/app-armeabi-v7a-release.apk" || exit 1
+          test -f "$OUT/app-x86_64-release.apk" || exit 1
+
+      - name: Archive Release bundle
+        run: |
+          ARCHIVE="instant_share-android-v${{ env.VERSION }}.zip"
+          cd build/app/outputs/flutter-apk
+          zip "../../../../${ARCHIVE}" \
+            app-arm64-v8a-release.apk \
+            app-armeabi-v7a-release.apk \
+            app-x86_64-release.apk
+          echo "ARCHIVE=${ARCHIVE}" >> "$GITHUB_ENV"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: instant_share-android
           path: ${{ env.ARCHIVE }}
           retention-days: 30
 
