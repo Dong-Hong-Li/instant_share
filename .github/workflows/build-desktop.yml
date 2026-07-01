@@ -357,10 +357,14 @@ jobs:
       - name: Setup Android NDK
         run: |
           SDK="${ANDROID_HOME:-/usr/local/lib/android/sdk}"
+          SDKMANAGER="${SDK}/cmdline-tools/latest/bin/sdkmanager"
+          NDK_VERSION="28.2.13676358"
           echo "ANDROID_HOME=${SDK}" >> "$GITHUB_ENV"
-          yes | sdkmanager --licenses >/dev/null || true
-          sdkmanager --install "ndk;28.2.13676358"
-          echo "ANDROID_NDK_HOME=${SDK}/ndk/28.2.13676358" >> "$GITHUB_ENV"
+          echo "${SDK}/cmdline-tools/latest/bin" >> "$GITHUB_PATH"
+          echo "${SDK}/platform-tools" >> "$GITHUB_PATH"
+          yes | "$SDKMANAGER" --licenses >/dev/null 2>&1 || true
+          "$SDKMANAGER" --install "ndk;${NDK_VERSION}"
+          echo "ANDROID_NDK_HOME=${SDK}/ndk/${NDK_VERSION}" >> "$GITHUB_ENV"
 
       - name: Build Go c-shared library
         working-directory: instant_share_server
