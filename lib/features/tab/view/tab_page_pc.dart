@@ -17,7 +17,7 @@ class _TabPagePcState extends BaseStatePage<TabPage>
     try {
       await ref.read(homeProvider).stopSharingIfNeeded();
     } catch (_) {}
-    await EmbeddedServerRuntime.instance.stop();
+    await ShareServerHost.instance.stop();
     await windowManager.destroy();
   }
 
@@ -43,30 +43,25 @@ class _TabPagePcState extends BaseStatePage<TabPage>
     syncTab(home);
 
     final colorValue = tc;
+    // macOS：系统交通灯 + 隐藏标题栏；Windows / Linux：自定义 WindowCaption。
     final useCaption = DesktopWindowConfig.useWindowCaption;
     final topInset = DesktopWindowConfig.topContentInset(
       hasWindowCaption: useCaption,
     );
 
-    final page = buildTabSidebarLayout(
+    return buildTabSidebarLayout(
       colorValue: colorValue,
       home: home,
       topInset: topInset,
-    );
-
-    if (!useCaption) return page;
-
-    return Column(
-      children: [
-        SizedBox(
-          height: kWindowCaptionHeight,
-          child: WindowCaption(
-            brightness: Brightness.light,
-            backgroundColor: Colors.transparent,
-          ),
-        ),
-        Expanded(child: page),
-      ],
+      windowCaption: useCaption
+          ? const SizedBox(
+              height: kWindowCaptionHeight,
+              child: WindowCaption(
+                brightness: Brightness.light,
+                backgroundColor: Colors.transparent,
+              ),
+            )
+          : null,
     );
   }
 }

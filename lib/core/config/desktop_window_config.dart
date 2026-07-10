@@ -30,16 +30,24 @@ class DesktopWindowConfig {
       !kIsWeb && (Platform.isMacOS || Platform.isWindows || Platform.isLinux);
 
   /// macOS 使用系统交通灯；Windows / Linux 使用 [WindowCaption]。
+  ///
+  /// 两者布局不同：
+  /// - macOS：内容延伸到标题栏区域，靠 [topContentInset] 避开交通灯；
+  /// - Windows / Linux：独立 caption 条叠在页面渐变之上（须放在渐变壳内，
+  ///   否则透明背景会透出窗口黑底）。
   static bool get useWindowCaption => isDesktop && !Platform.isMacOS;
 
   /// 是否使用隐藏式标题栏（全桌面平台）。
   static bool get usesHiddenTitleBar => isDesktop;
 
-  /// 主内容区顶部留白：macOS 为交通灯留空，其余平台由 [WindowCaption] 承担。
+  /// 主内容区顶部留白。
+  ///
+  /// - macOS：为交通灯留空（[h28]）
+  /// - Windows / Linux：caption 已单独占位，内容区仅保留少量间距（[h8]）
   static double topContentInset({required bool hasWindowCaption}) {
     if (!isDesktop) return 0;
-    if (hasWindowCaption) return h8;
-    if (Platform.isMacOS) return h28;
+    // macOS：无 caption，靠 inset 避开交通灯；Win/Linux：caption 单独占位。
+    if (!hasWindowCaption && Platform.isMacOS) return h28;
     return h8;
   }
 

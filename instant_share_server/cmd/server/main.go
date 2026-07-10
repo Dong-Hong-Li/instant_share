@@ -18,7 +18,10 @@ func main() {
 	if err != nil {
 		log.Fatalf("server failed: %v", err)
 	}
-	log.Printf("instant-share server listening on http://127.0.0.1:%d/share (admin ws: ws://127.0.0.1:%d/ws)", rt.Port(), rt.Port())
+	port := rt.Port()
+	log.Printf("instant-share server listening on http://127.0.0.1:%d/share (admin ws: ws://127.0.0.1:%d/ws)", port, port)
+	// Flutter 子进程运行时解析此行获取系统分配端口。
+	log.Printf("INSTANT_SHARE_READY port=%d", port)
 
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, syscall.SIGINT, syscall.SIGTERM)
@@ -43,13 +46,4 @@ func watchParent(pid int, stop chan<- os.Signal) {
 			return
 		}
 	}
-}
-
-// parentAlive 通过发送 0 信号判断进程是否存活（Unix）。
-func parentAlive(pid int) bool {
-	proc, err := os.FindProcess(pid)
-	if err != nil {
-		return false
-	}
-	return proc.Signal(syscall.Signal(0)) == nil
 }

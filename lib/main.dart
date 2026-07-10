@@ -14,7 +14,7 @@ import 'package:instant_share/routes/router_config.dart';
 import 'package:instant_share/core/shared/initialization_provider.dart';
 import 'package:instant_share/core/shared/logger_manager.dart';
 import 'package:instant_share/core/shared/theme_manager.dart';
-import 'package:instant_share/infrastructure/share_server/embedded_server_runtime.dart';
+import 'package:instant_share/infrastructure/share_server/share_server_host.dart';
 import 'package:instant_share/infrastructure/share_server/share_server_lifecycle.dart';
 import 'package:instant_share/core/utils/storage/prefs_util.dart';
 import 'package:instant_share/core/ui/widget/desktop_window_frame.dart';
@@ -162,7 +162,7 @@ Future<void> _initializeApp() async {
       critical: true,
       timeout: const Duration(seconds: 20),
       retryCount: 0,
-      task: EmbeddedServerRuntime.instance.ensureStarted,
+      task: ShareServerHost.instance.ensureStarted,
     );
   }
 

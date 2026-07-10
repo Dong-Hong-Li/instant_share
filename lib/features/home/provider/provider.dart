@@ -13,9 +13,9 @@ import 'package:instant_share/infrastructure/file_picker_manager.dart';
 import 'package:instant_share/infrastructure/network/lan_ip_unavailable_exception.dart';
 import 'package:instant_share/infrastructure/network/lan_ip_resolver.dart';
 import 'package:instant_share/infrastructure/network/share_url_resolver.dart';
-import 'package:instant_share/infrastructure/share_server/embedded_server_runtime.dart';
 import 'package:instant_share/infrastructure/share_server/share_server_config.dart';
 import 'package:instant_share/infrastructure/share_server/share_server_health.dart';
+import 'package:instant_share/infrastructure/share_server/share_server_host.dart';
 import 'package:instant_share/infrastructure/share_server/share_session_service.dart';
 import 'package:instant_share/infrastructure/websocket/ws_share_models.dart';
 import 'package:uuid/uuid.dart';
@@ -25,7 +25,7 @@ class HomeProvider extends ChangeNotifier {
     : _shareUrlResolver = shareUrlResolver ?? ShareUrlResolver(
         lanIpResolver: createLanIpResolver(),
       ) {
-    final port = EmbeddedServerRuntime.instance.port;
+    final port = ShareServerHost.instance.port;
     if (port != null) {
       _serverPort = port;
     }
@@ -479,14 +479,16 @@ class HomeProvider extends ChangeNotifier {
 }
 
 final homeProvider = ChangeNotifierProvider<HomeProvider>((ref) {
+  // 服务未启动时 port 为 null；用占位 URI，避免 provider 创建即崩溃。
+  final port = ShareServerHost.instance.port;
   final provider = HomeProvider(
     ShareSessionService(
-      serverBaseUri: ShareServerConfig.baseUriForPort(
-        EmbeddedServerRuntime.instance.port!,
-      ),
+      serverBaseUri: ShareServerConfig.baseUriForPort(port ?? 0),
     ),
   );
   ref.onDispose(provider.dispose);
-  scheduleMicrotask(provider.syncOnStartup);
+  if (port != null) {
+    scheduleMicrotask(provider.syncOnStartup);
+  }
   return provider;
 });

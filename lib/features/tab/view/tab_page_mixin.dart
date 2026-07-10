@@ -47,30 +47,56 @@ mixin TabPagePcMixin on BaseStatePage<TabPage> {
     required ColorValue colorValue,
     required HomeProvider home,
     required double topInset,
+    Widget? windowCaption,
   }) {
     final visibleTabs = TabSidebarItem.visibleTabs(sharing: home.isSharing);
     if (!visibleTabs.contains(tab)) {
       setState(() => tab = TabSidebarItem.home);
     }
 
+    // Windows / Linux：侧栏顶到窗口上沿；WindowCaption 只盖右侧内容区，
+    // 避免整行 caption 把侧栏顶出一条空白。
+    // macOS：无 WindowCaption，两侧共用 topInset 避开交通灯。
+    final content = windowCaption == null
+        ? Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              TabSidebar(
+                colorValue: colorValue,
+                sharing: home.isSharing,
+                visibleTabs: visibleTabs,
+                selected: tab,
+                onSelected: (value) => setState(() => tab = value),
+                topPadding: topInset,
+              ),
+              Expanded(child: buildTabBody(colorValue, home, topInset)),
+            ],
+          )
+        : Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              TabSidebar(
+                colorValue: colorValue,
+                sharing: home.isSharing,
+                visibleTabs: visibleTabs,
+                selected: tab,
+                onSelected: (value) => setState(() => tab = value),
+                topPadding: 0,
+              ),
+              Expanded(
+                child: Column(
+                  children: [
+                    windowCaption,
+                    Expanded(child: buildTabBody(colorValue, home, topInset)),
+                  ],
+                ),
+              ),
+            ],
+          );
+
     return buildTabGradientShell(
       home: home,
-      child: SizedBox.expand(
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            TabSidebar(
-              colorValue: colorValue,
-              sharing: home.isSharing,
-              visibleTabs: visibleTabs,
-              selected: tab,
-              onSelected: (value) => setState(() => tab = value),
-              topPadding: topInset,
-            ),
-            Expanded(child: buildTabBody(colorValue, home, topInset)),
-          ],
-        ),
-      ),
+      child: SizedBox.expand(child: content),
     );
   }
 }

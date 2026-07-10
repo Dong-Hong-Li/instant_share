@@ -12,7 +12,7 @@ import 'package:instant_share/features/setting/view/setting_page.dart';
 import 'package:instant_share/core/ui/widget/shell/app_page_shell.dart';
 import 'package:instant_share/core/ui/widget/shell/tab_nav_config.dart';
 import 'package:instant_share/features/tab/widget/tab_sidebar.dart';
-import 'package:instant_share/infrastructure/share_server/embedded_server_runtime.dart';
+import 'package:instant_share/infrastructure/share_server/share_server_host.dart';
 import 'package:instant_share/resource/color/color_value.dart';
 import 'package:instant_share/resource/color/home_palette.dart';
 import 'package:window_manager/window_manager.dart';
