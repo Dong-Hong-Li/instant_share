@@ -103,6 +103,11 @@ if(EXISTS "${SHARE_SERVER_EXE}")
   install(FILES "${SHARE_SERVER_EXE}"
     DESTINATION "${INSTALL_BUNDLE_LIB_DIR}"
     COMPONENT Runtime)
+else()
+  message(WARNING
+    "instant-share-server.exe not found at ${SHARE_SERVER_EXE}. "
+    "Windows 运行时依赖该文件。请先执行: "
+    "cd instant_share_server && go build -o ../assets/bin/instant-share-server.exe ./cmd/server")
 endif()
 
 # Copy the native assets provided by the build.dart from all packages.

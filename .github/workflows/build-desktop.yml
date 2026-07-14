@@ -69,14 +69,6 @@ jobs:
           go-version: "1.25.x"
           cache-dependency-path: instant_share_server/go.sum
 
-      - name: Setup MSYS2 MinGW (Go CGO)
-        uses: msys2/setup-msys2@v2
-        with:
-          msystem: MINGW64
-          update: true
-          install: mingw-w64-x86_64-toolchain
-          path-type: inherit
-
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
@@ -88,21 +80,22 @@ jobs:
         with:
           node-version: "22"
 
+      # Windows 默认 ProcessServerRuntime：独立 exe，无需 MinGW/CGO。
       - name: Build web frontend
         working-directory: instant_share_server
-        run: ./build_web.sh
+        shell: cmd
+        run: build_web.bat
 
-      - name: Build Go c-shared library
-        shell: msys2 {0}
-        run: |
-          gcc --version
-          go version
-          cd instant_share_server
-          export CGO_ENABLED=1
-          mkdir -p ../assets/lib
-          go build -buildmode=c-shared -o ../assets/lib/instantshare.dll ./cmd/lib
-          rm -f ../assets/lib/instantshare.h
-          test -f ../assets/lib/instantshare.dll
+      - name: Build Go standalone server
+        working-directory: instant_share_server
+        shell: pwsh
+        run: | 
+          New-Item -ItemType Directory -Force -Path ..\assets\bin | Out-Null
+          $env:CGO_ENABLED = "0"
+          go build -o ..\assets\bin\instant-share-server.exe .\cmd\server
+          if (-not (Test-Path ..\assets\bin\instant-share-server.exe)) {
+            throw "Missing assets/bin/instant-share-server.exe"
+          }
 
       - name: Flutter pub get
         run: flutter pub get
@@ -114,7 +107,11 @@ jobs:
         shell: pwsh
         run: |
           $release = "build\windows\x64\runner\Release"
-          foreach ($file in @("instant_share.exe", "instantshare.dll", "flutter_windows.dll")) {
+          foreach ($file in @(
+            "instant_share.exe",
+            "instant-share-server.exe",
+            "flutter_windows.dll"
+          )) {
             if (-not (Test-Path (Join-Path $release $file))) { throw "Missing $file" }
           }
 
