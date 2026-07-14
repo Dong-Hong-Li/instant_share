@@ -1,7 +1,7 @@
 name: instant_share
 description: "Instant Share - 即时分享"
 publish_to: 'https://github.com/Dong-Hong-Li/instant_share.git'
-version: 1.0.1+1
+version: 1.0.2+1
 
 environment:
   sdk: ">=3.9.0 <4.0.0"
