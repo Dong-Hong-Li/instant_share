@@ -9,6 +9,7 @@ import 'package:instant_share/core/config/common.dart';
 import 'package:instant_share/core/config/desktop_window_config.dart';
 import 'package:instant_share/core/config/screen_design_config.dart';
 import 'package:instant_share/core/controller/app_theme_controller.dart';
+import 'package:instant_share/core/controller/share_port_controller.dart';
 import 'package:instant_share/routes/app_router_observer.dart';
 import 'package:instant_share/routes/router_config.dart';
 import 'package:instant_share/core/shared/initialization_provider.dart';
@@ -26,6 +27,7 @@ Future<void> main() async {
   await DesktopWindowConfig.ensureInitialized();
   await PrefsUtil.init();
   DI.put(AppThemeController(), permanent: true);
+  DI.put(SharePortController(), permanent: true);
   runAppEntry();
 }
 

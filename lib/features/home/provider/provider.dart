@@ -4,6 +4,8 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/legacy.dart';
+import 'package:instant_share/core/controller/share_port_controller.dart';
+import 'package:instant_share/core/utils/port/port_util.dart';
 import 'package:instant_share/features/home/data/home_article_limits.dart';
 import 'package:instant_share/features/home/data/home_article_item.dart';
 import 'package:instant_share/features/home/data/home_article_store.dart';
@@ -18,6 +20,7 @@ import 'package:instant_share/infrastructure/share_server/share_server_health.da
 import 'package:instant_share/infrastructure/share_server/share_server_host.dart';
 import 'package:instant_share/infrastructure/share_server/share_session_service.dart';
 import 'package:instant_share/infrastructure/websocket/ws_share_models.dart';
+import 'package:state_scope/state_scope.dart';
 import 'package:uuid/uuid.dart';
 
 class HomeProvider extends ChangeNotifier {
@@ -49,6 +52,7 @@ class HomeProvider extends ChangeNotifier {
   List<HomeArticleItem> _articles = [];
   final Set<String> _selectedArticleIds = {};
   String? _errorMessage;
+  bool _portOccupiedNeedsSettings = false;
 
   List<HomeFileItem> get selectedFiles => List.unmodifiable(_selectedFiles);
 
@@ -93,9 +97,18 @@ class HomeProvider extends ChangeNotifier {
   /// 最近一次分享/地址解析失败的用户可读提示（展示后应 [clearErrorMessage]）。
   String? get errorMessage => _errorMessage;
 
+  /// 自定义端口占用，需引导用户去设置页。
+  bool get portOccupiedNeedsSettings => _portOccupiedNeedsSettings;
+
   void clearErrorMessage() {
     if (_errorMessage == null) return;
     _errorMessage = null;
+    notifyListeners();
+  }
+
+  void clearPortOccupiedFlag() {
+    if (!_portOccupiedNeedsSettings) return;
+    _portOccupiedNeedsSettings = false;
     notifyListeners();
   }
 
@@ -394,6 +407,9 @@ class HomeProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
+      final blocked = await _guardCustomPortBeforeStart();
+      if (blocked) return;
+
       final status = await _session.startShare(_selectedFiles);
       if (!status.active) {
         _isSharing = false;
@@ -423,6 +439,58 @@ class HomeProvider extends ChangeNotifier {
       _isShareBusy = false;
       notifyListeners();
     }
+  }
+
+  /// 自定义端口守卫；返回 true 表示已拦截、不应继续 startShare。
+  Future<bool> _guardCustomPortBeforeStart() async {
+    final portCtrl = DI.find<SharePortController>();
+    if (!portCtrl.useCustomPort) return false;
+
+    final port = portCtrl.customPort;
+    if (port == null || !PortUtil.isValidCustomPort(port)) {
+      _setErrorMessage(
+        '请设置合法的自定义端口（${PortUtil.kMinCustomSharePort}–${PortUtil.kMaxCustomSharePort}）',
+      );
+      return true;
+    }
+
+    final currentListen = ShareServerHost.instance.port;
+    final free = await PortUtil.isPortFree(
+      port,
+      ownedByCurrentServer: currentListen,
+    );
+    if (!free) {
+      _portOccupiedNeedsSettings = true;
+      return true;
+    }
+
+    return false;
+  }
+
+  /// 分享服务端口重绑后：换 session 基址并刷新 health。
+  Future<void> rebindAfterServerRestart() async {
+    final port = ShareServerHost.instance.port;
+    if (port == null) {
+      _serverPort = null;
+      _serverShareUrl = null;
+      _alternateShareUrls = const [];
+      await _session.disconnect();
+      notifyListeners();
+      return;
+    }
+
+    await _session.rebind(ShareServerConfig.baseUriForPort(port));
+    _serverPort = port;
+    try {
+      final health = await _session.fetchHealth();
+      await _applyServerHealth(health);
+    } catch (error, stackTrace) {
+      debugPrint(
+        '[HomeProvider] rebindAfterServerRestart health failed: $error\n$stackTrace',
+      );
+      _handleShareError(error);
+    }
+    notifyListeners();
   }
 
   Future<void> _stopSharing() async {

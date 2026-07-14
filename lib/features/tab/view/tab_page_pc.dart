@@ -3,6 +3,7 @@ part of 'tab_page.dart';
 class _TabPagePcState extends BaseStatePage<TabPage>
     with WindowListener, TabPagePcMixin {
   bool _windowListenerAttached = false;
+  String? _lastShownError;
 
   @override
   void dispose() {
@@ -40,7 +41,9 @@ class _TabPagePcState extends BaseStatePage<TabPage>
   Widget buildPage(BuildContext context, WidgetRef ref) {
     _ensureWindowListener();
     final home = ref.watch(homeProvider);
+    _maybeShowError(context, home);
     syncTab(home);
+    maybeHandlePortOccupied(context, home);
 
     final colorValue = tc;
     // macOS：系统交通灯 + 隐藏标题栏；Windows / Linux：自定义 WindowCaption。
@@ -63,5 +66,18 @@ class _TabPagePcState extends BaseStatePage<TabPage>
             )
           : null,
     );
+  }
+
+  void _maybeShowError(BuildContext context, HomeProvider home) {
+    final error = home.errorMessage;
+    if (error == null || error == _lastShownError) return;
+
+    _lastShownError = error;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      showHomeShareSnackBar(context, error);
+      home.clearErrorMessage();
+      _lastShownError = null;
+    });
   }
 }

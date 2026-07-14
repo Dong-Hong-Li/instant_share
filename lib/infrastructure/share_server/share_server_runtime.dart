@@ -6,6 +6,9 @@ abstract class ShareServerRuntime {
   /// 停止服务（幂等）。
   Future<void> stop();
 
+  /// 按当前配置重新监听：先 stop，再 ensureStarted。
+  Future<void> restartListening();
+
   /// 是否已启动。
   bool get isStarted;
 

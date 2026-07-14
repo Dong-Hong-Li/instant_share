@@ -1,19 +1,23 @@
 import 'package:flutter/material.dart';
 import 'package:instant_share/core/ui/platform_state_factory.dart';
+import 'package:instant_share/features/setting/widget/setting_port_section.dart';
 import 'package:instant_share/resource/color/color_value.dart';
-import 'package:instant_share/resource/screen_utils/font_size.dart';
 import 'package:instant_share/resource/screen_utils/layout_dimens_h.dart';
-import 'package:instant_share/resource/screen_utils/layout_dimens_w.dart';
 
 part 'setting_page_mixin.dart';
 part 'setting_page_pc.dart';
 part 'setting_page_app.dart';
 
-/// 设置 Tab（占位）。
+/// 设置 Tab。
 class SettingPage extends StatefulWidget {
-  const SettingPage({super.key, required this.colorValue});
+  const SettingPage({
+    super.key,
+    required this.colorValue,
+    required this.isSharing,
+  });
 
   final ColorValue colorValue;
+  final bool isSharing;
 
   @override
   // ignore: no_logic_in_create_state
@@ -24,32 +28,22 @@ class SettingPage extends StatefulWidget {
 }
 
 class _SettingPageContent extends StatelessWidget {
-  const _SettingPageContent({required this.colorValue});
+  const _SettingPageContent({
+    required this.colorValue,
+    required this.isSharing,
+  });
 
   final ColorValue colorValue;
+  final bool isSharing;
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: EdgeInsets.symmetric(horizontal: w24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              '设置',
-              style: TextStyle(
-                fontSize: f18,
-                fontWeight: FontWeight.w600,
-                color: colorValue.homeTitleColor,
-              ),
-            ),
-            SizedBox(height: h8),
-            Text(
-              '功能规划中',
-              style: TextStyle(fontSize: f14, color: colorValue.homeHintColor),
-            ),
-          ],
+    return SafeArea(
+      child: SingleChildScrollView(
+        padding: EdgeInsets.only(top: h24, bottom: h24),
+        child: SettingPortSection(
+          colorValue: colorValue,
+          isSharing: isSharing,
         ),
       ),
     );

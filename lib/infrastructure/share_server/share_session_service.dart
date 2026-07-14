@@ -9,10 +9,16 @@ class ShareSessionService {
   ShareSessionService({required Uri serverBaseUri})
     : _serverBaseUri = serverBaseUri;
 
-  final Uri _serverBaseUri;
+  Uri _serverBaseUri;
   ShareWsAdminClient? _client;
 
   Uri get serverBaseUri => _serverBaseUri;
+
+  /// 断开旧连接并切换服务基址（端口重绑后调用）。
+  Future<void> rebind(Uri serverBaseUri) async {
+    await disconnect();
+    _serverBaseUri = serverBaseUri;
+  }
 
   Future<ShareServerHealthDto> fetchHealth() {
     return ShareServerDiscovery(serverBaseUri: _serverBaseUri).fetchHealth();

@@ -17,6 +17,7 @@ class _TabPageAppState extends BaseStatePage<TabPage> with TabPageAppMixin {
     final home = ref.watch(homeProvider);
     _maybeShowError(context, home);
     syncTab(home);
+    maybeHandlePortOccupied(context, home);
 
     return buildTabBottomNavLayout(
       colorValue: tc,

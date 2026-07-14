@@ -3,11 +3,35 @@ part of 'tab_page.dart';
 /// PC 端 Tab 壳层布局（左侧边栏），App 端见 [TabPageAppMixin]。
 mixin TabPagePcMixin on BaseStatePage<TabPage> {
   TabSidebarItem tab = TabSidebarItem.home;
+  bool _handlingPortOccupied = false;
 
   void syncTab(HomeProvider home) {
     if (!home.isSharing && tab == TabSidebarItem.links) {
       setState(() => tab = TabSidebarItem.home);
     }
+  }
+
+  void maybeHandlePortOccupied(BuildContext context, HomeProvider home) {
+    if (!home.portOccupiedNeedsSettings || _handlingPortOccupied) return;
+
+    _handlingPortOccupied = true;
+    home.clearPortOccupiedFlag();
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted) {
+        _handlingPortOccupied = false;
+        return;
+      }
+      final goSettings = await showSharePortOccupiedDialog(context);
+      if (!mounted) {
+        _handlingPortOccupied = false;
+        return;
+      }
+      if (goSettings) {
+        setState(() => tab = TabSidebarItem.settings);
+        DI.find<SharePortController>().requestFocusPortField();
+      }
+      _handlingPortOccupied = false;
+    });
   }
 
   Widget buildTabGradientShell({
@@ -37,7 +61,10 @@ mixin TabPagePcMixin on BaseStatePage<TabPage> {
         provider: home,
         topInset: topInset,
       ),
-      TabSidebarItem.settings => SettingPage(colorValue: colorValue),
+      TabSidebarItem.settings => SettingPage(
+        colorValue: colorValue,
+        isSharing: home.isSharing,
+      ),
       TabSidebarItem.config => ConfigPage(colorValue: colorValue),
       TabSidebarItem.links => LinkPage(colorValue: colorValue),
     };

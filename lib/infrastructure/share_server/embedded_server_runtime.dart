@@ -3,8 +3,8 @@ import 'dart:ffi';
 
 import 'package:flutter/foundation.dart';
 import 'package:instant_share/infrastructure/share_server/embedded_server_library_locator.dart';
-import 'package:instant_share/infrastructure/share_server/share_server_config.dart';
 import 'package:instant_share/infrastructure/share_server/share_server_exception.dart';
+import 'package:instant_share/infrastructure/share_server/share_server_listen_port.dart';
 import 'package:instant_share/infrastructure/share_server/share_server_runtime.dart';
 
 typedef _StartServerC = Int32 Function(Int32 port);
@@ -47,7 +47,7 @@ class EmbeddedServerRuntime implements ShareServerRuntime {
 
     await _bind();
 
-    final port = _start!(ShareServerConfig.systemAllocatedPort);
+    final port = _start!(resolveShareServerListenPort());
     if (port <= 0) {
       throw const ShareServerException(
         message: '进程内 Go 服务启动失败（StartServer 返回错误）',
@@ -77,5 +77,12 @@ class EmbeddedServerRuntime implements ShareServerRuntime {
     _started = false;
     _port = null;
     debugPrint('[ShareServer] 进程内服务已停止');
+  }
+
+  @override
+  Future<void> restartListening() async {
+    await stop();
+    await Future<void>.delayed(const Duration(milliseconds: 200));
+    await ensureStarted();
   }
 }

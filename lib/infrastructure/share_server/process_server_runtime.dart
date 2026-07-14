@@ -7,6 +7,7 @@ import 'package:instant_share/infrastructure/share_server/share_server_binary_lo
 import 'package:instant_share/infrastructure/share_server/share_server_config.dart';
 import 'package:instant_share/infrastructure/share_server/share_server_discovery.dart';
 import 'package:instant_share/infrastructure/share_server/share_server_exception.dart';
+import 'package:instant_share/infrastructure/share_server/share_server_listen_port.dart';
 import 'package:instant_share/infrastructure/share_server/share_server_runtime.dart';
 
 /// 通过独立 Go 子进程运行分享服务（Windows 无需 CGO/MinGW）。
@@ -63,7 +64,7 @@ class ProcessServerRuntime implements ShareServerRuntime {
       binary.path,
       [
         '-port',
-        '${ShareServerConfig.systemAllocatedPort}',
+        '${resolveShareServerListenPort()}',
         '-parent-pid',
         '$pid',
       ],
@@ -136,6 +137,13 @@ class ProcessServerRuntime implements ShareServerRuntime {
     _started = false;
     _port = null;
     debugPrint('[ShareServer] 子进程服务已停止');
+  }
+
+  @override
+  Future<void> restartListening() async {
+    await stop();
+    await Future<void>.delayed(const Duration(milliseconds: 200));
+    await ensureStarted();
   }
 
   Future<void> _stopManagedProcess() async {
