@@ -10,7 +10,7 @@ import (
 	"sync"
 	"time"
 
-	"instant_share/server/internal/config"
+	"instant_share/server/config"
 
 	ws "github.com/gorilla/websocket"
 )

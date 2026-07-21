@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"instant_share/server/internal/app"
-	"instant_share/server/internal/config"
+	"instant_share/server/config"
 )
 
 // Runtime 封装一个正在运行的 HTTP/WebSocket 服务实例。

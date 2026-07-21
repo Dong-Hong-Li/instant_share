@@ -3,7 +3,7 @@ package app
 import (
 	"net/http"
 
-	"instant_share/server/internal/config"
+	"instant_share/server/config"
 	"instant_share/server/internal/handler"
 	infraws "instant_share/server/internal/infrastructure/websocket"
 	"instant_share/server/internal/service"

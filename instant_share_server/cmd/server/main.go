@@ -7,7 +7,7 @@ import (
 	"syscall"
 	"time"
 
-	"instant_share/server/internal/config"
+	"instant_share/server/config"
 	"instant_share/server/internal/runtime"
 )
 

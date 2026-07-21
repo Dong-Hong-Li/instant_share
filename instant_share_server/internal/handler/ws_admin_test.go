@@ -11,7 +11,7 @@ import (
 
 	gws "github.com/gorilla/websocket"
 
-	"instant_share/server/internal/config"
+	"instant_share/server/config"
 	"instant_share/server/internal/infrastructure/websocket"
 	"instant_share/server/internal/model"
 	"instant_share/server/internal/service"

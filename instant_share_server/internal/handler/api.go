@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"net/http"
 
-	"instant_share/server/internal/config"
+	"instant_share/server/config"
 	"instant_share/server/internal/model"
 	"instant_share/server/internal/service"
 	"instant_share/server/internal/util"

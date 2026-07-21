@@ -1,0 +1,36 @@
+package consts
+
+// WebSocket 角色与帧类型字面量（与现网 Flutter/Web 对齐，本轮不改字面量）。
+const (
+	RoleAdmin  = "admin"
+	RolePeer   = "peer"
+	RoleViewer = "viewer"
+
+	TypeShareStart            = "share.start"
+	TypeShareStartAck         = "share.start_ack"
+	TypeShareStop             = "share.stop"
+	TypeShareStopAck          = "share.stop_ack"
+	TypeShareSync             = "share.sync"
+	TypeShareSyncAck          = "share.sync_ack"
+	TypeShareArticleSync      = "share.article.sync"
+	TypeShareArticleSyncAck   = "share.article.sync_ack"
+	TypeShareStatus           = "share.status"
+	TypePairingRequest        = "pairing.request"
+	TypePairingRequestAck     = "pairing.request_ack"
+	TypePairingDecide         = "pairing.decide"
+	TypePairingDecideAck      = "pairing.decide_ack"
+	TypePairingApprove        = "pairing.approve"
+	TypePairingReject         = "pairing.reject"
+	TypePairingTimeout        = "pairing.timeout"
+	TypeShareOffer            = "share.offer"
+	TypeShareOfferAck         = "share.offer_ack"
+	TypeRoomNotify            = "room.notify"
+	TypeRoomSnapshot          = "room.snapshot"
+	TypeRoomSnapshotAck       = "room.snapshot_ack"
+	TypeRoomLeave             = "room.leave"
+	TypeRoomLeaveAck          = "room.leave_ack"
+	TypePublicCatalogSync     = "room.public_catalog.sync"
+	TypePublicCatalogSyncAck  = "room.public_catalog.sync_ack"
+	TypePublicCatalogClear    = "room.public_catalog.clear"
+	TypePublicCatalogClearAck = "room.public_catalog.clear_ack"
+)
