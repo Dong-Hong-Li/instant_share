@@ -1,3 +1,4 @@
+// Package runtime 封装 instant-share HTTP/WebSocket 服务的启动与优雅关停。
 package runtime
 
 import (
@@ -15,14 +16,20 @@ import (
 // Runtime 封装一个正在运行的 HTTP/WebSocket 服务实例。
 type Runtime struct {
 	mu       sync.Mutex
-	deps     *cmd.AppDeps
-	cleanup  func()
-	server   *http.Server
-	listener net.Listener
-	port     int
+	deps     *cmd.AppDeps   // bootstrap 装配的依赖容器
+	cleanup  func()         // 额外清理（如 room WS Stop）
+	server   *http.Server   // HTTP 服务
+	listener net.Listener   // 实际监听 socket（可能随机端口）
+	port     int            // 解析后的监听端口
 }
 
-// Start 监听并在后台 goroutine 中启动服务。
+/**
+ * @description: Start 监听 cfg.Addr、Bootstrap 依赖并在后台 goroutine 启动 HTTP 服务。
+ * 若 Addr 端口为 0，会使用系统分配的实际端口写回 cfg.Port。
+ * @param {config.Config} cfg 服务配置
+ * @return {*Runtime} 运行中实例
+ * @return {error} 监听或 Bootstrap 失败
+ */
 func Start(cfg config.Config) (*Runtime, error) {
 	ln, err := net.Listen("tcp", cfg.Addr())
 	if err != nil {
@@ -66,7 +73,9 @@ func (r *Runtime) Deps() *cmd.AppDeps {
 	return r.deps
 }
 
-// Stop 优雅关闭服务（含进行中的分享会话与 WebSocket 连接）。幂等。
+/**
+ * @description: Stop 优雅关闭服务：先停分享、关 WS、执行 cleanup，再 Shutdown HTTP。幂等。
+ */
 func (r *Runtime) Stop() {
 	r.mu.Lock()
 	defer r.mu.Unlock()

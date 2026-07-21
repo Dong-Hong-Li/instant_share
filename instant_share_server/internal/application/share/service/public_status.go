@@ -10,9 +10,21 @@ import (
 	"instant_share/server/internal/util"
 )
 
-// BuildPublicShareStatus 组装公开分享状态。
-// 优先级：Peer 镜像目录 > 本机房间目录 > 本机分享文件。
-// 权威 Host（已有成员）由调用方传入 mirror=nil 强制使用房间目录。
+/**
+ * @description: BuildPublicShareStatus 组装面向接收者的公开分享状态。
+ * 文件列表优先级：
+ *  1. Peer 镜像目录（mirror 非空）—— Peer 聚合到的跨设备完整目录；
+ *  2. 本机房间聚合目录（roomCatalog 非空）；
+ *  3. 本机分享文件（shareStatus.Files）。
+ * 权威 Host（已有成员）必须由调用方传 mirror=nil，强制走房间目录，避免残留镜像抢占。
+ * articles 始终取自本机 shareStatus，不做多机聚合。
+ * active = shareStatus.Active || len(files) > 0。
+ * @param {share.Status} shareStatus 本机分享快照
+ * @param {[]room.SharedEntry} roomCatalog 本机 RoomService 聚合目录
+ * @param {[]room.SharedEntry} mirror Peer 镜像目录；权威 Host 应传 nil
+ * @param {string} localBaseURL 判定「本机条目」用的 HTTP 根（相对 vs 绝对 download_url）
+ * @return {share.PublicStatus}
+ */
 func BuildPublicShareStatus(
 	shareStatus share.Status,
 	roomCatalog []room.SharedEntry,
@@ -47,11 +59,17 @@ func BuildPublicShareStatus(
 	}
 }
 
-// IsAuthoritativeHost 本机是否为已接纳成员的房间 Host。
+/**
+ * @description: IsAuthoritativeHost 判定本机是否为「权威 Host」——已有至少一个审批通过的成员。
+ * 仅 HostBaseURL != "" 不够：Peer 本地分享也可能留下临时 HostBaseURL。
+ * @param {int} memberCount room.Members() 长度
+ * @return {bool}
+ */
 func IsAuthoritativeHost(memberCount int) bool {
 	return memberCount > 0
 }
 
+// mapShareFilesToPublicFiles 本机分享文件 → 相对 download_url。
 func mapShareFilesToPublicFiles(files []share.ShareFile) []share.PublicShareFile {
 	public := make([]share.PublicShareFile, 0, len(files))
 	for _, file := range files {
@@ -66,6 +84,7 @@ func mapShareFilesToPublicFiles(files []share.ShareFile) []share.PublicShareFile
 	return public
 }
 
+// mapSharedEntriesToPublicFiles 房间/镜像条目 → 公开文件；本机相对路径，他机绝对 URL。
 func mapSharedEntriesToPublicFiles(entries []room.SharedEntry, localBaseURL string) []share.PublicShareFile {
 	public := make([]share.PublicShareFile, 0, len(entries))
 	for _, entry := range entries {
@@ -81,6 +100,7 @@ func mapSharedEntriesToPublicFiles(entries []room.SharedEntry, localBaseURL stri
 	return public
 }
 
+// publicDownloadURL 本机条目用相对路径，跨设备条目拼所有者绝对地址（浏览器直连，不中转）。
 func publicDownloadURL(entry room.SharedEntry, localBaseURL string) string {
 	if sameBaseURL(entry.BaseURL, localBaseURL) {
 		return fmt.Sprintf("/api/v1/share/files/%s/download", entry.ID)

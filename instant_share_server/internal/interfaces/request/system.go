@@ -2,15 +2,15 @@ package request
 
 import "instant_share/server/internal/domain/share"
 
-// ServerHealth admin 客户端启动前探测：服务是否可用及 WebSocket 地址。
+// ServerHealth admin 客户端启动前探测响应 data 结构。
 type ServerHealth struct {
-	Service  string       `json:"service"`
-	Healthy  bool         `json:"healthy"`
-	Port     int          `json:"port"`
-	LANIP    string       `json:"lan_ip"`
-	LocalIPs []string     `json:"local_ips"`
-	HTTPBase string       `json:"http_base"`
-	WSURL    string       `json:"ws_url"`
-	ShareURL string       `json:"share_url"`
-	Share    share.Status `json:"share"`
+	Service  string       `json:"service"`    // 服务名
+	Healthy  bool         `json:"healthy"`    // 是否可用
+	Port     int          `json:"port"`       // 实际监听端口
+	LANIP    string       `json:"lan_ip"`     // 首选局域网 IP
+	LocalIPs []string     `json:"local_ips"`  // 本机全部 IP
+	HTTPBase string       `json:"http_base"`  // 本机 HTTP 根
+	WSURL    string       `json:"ws_url"`     // WebSocket 地址
+	ShareURL string       `json:"share_url"`  // 接收者页面 URL（LAN）
+	Share    share.Status `json:"share"`      // 当前分享快照
 }

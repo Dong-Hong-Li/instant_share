@@ -1,3 +1,4 @@
+// Package service 实现互享房间用例：配对、成员、聚合目录与跨域通知钩子。
 package service
 
 import (
@@ -10,31 +11,51 @@ import (
 	"instant_share/server/internal/domain/room"
 )
 
+// ownerCatalog 单个设备在房间内维护的共享文件集合。
 type ownerCatalog struct {
+	// displayName 设备展示名。
 	displayName string
-	baseURL     string
-	files       []room.SharedFileMeta
+	// baseURL 该设备 HTTP 根，供跨设备直连下载。
+	baseURL string
+	// files 该设备发布的文件元数据。
+	files []room.SharedFileMeta
 }
 
 // Service 互传房间用例（内存状态机）。
+//
+// 状态变更后通过 SetHooks 通知 interfaces 层广播；本包不直接依赖 WebSocket。
 type Service struct {
 	mu sync.RWMutex
 
-	active        bool
-	hostDeviceID  string
-	hostBaseURL   string
-	sessionID     string
-	revision      int
-	pending       map[string]room.PendingRequest
-	members       map[string]room.Member
+	// active 房间是否已 EnsureRoom。
+	active bool
+	// hostDeviceID Host 设备 ID（通常为 "host"）。
+	hostDeviceID string
+	// hostBaseURL Host HTTP 根（不含 /share）。
+	hostBaseURL string
+	// sessionID 房间/会话 ID（对外 room_id）。
+	sessionID string
+	// revision 聚合目录版本号，每次目录变更递增。
+	revision int
+	// pending 待审批配对请求，key=deviceID。
+	pending map[string]room.PendingRequest
+	// members 已入房成员，key=deviceID。
+	members map[string]room.Member
+	// ownerCatalogs 各设备发布的文件，聚合为 Catalog()。
 	ownerCatalogs map[string]ownerCatalog
-	now           func() time.Time
+	// now 当前时间；测试可 SetNow 注入。
+	now func() time.Time
 
+	// onCatalogUpdated 目录变更回调（bootstrap 注入）。
 	onCatalogUpdated repository.CatalogUpdatedHook
+	// onPendingUpdated pending 变更回调。
 	onPendingUpdated repository.PendingUpdatedHook
 }
 
-// NewService 创建房间用例。
+/**
+ * @description: NewService 创建空房间用例（需 EnsureRoom 后才能配对）。
+ * @return {*Service}
+ */
 func NewService() *Service {
 	return &Service{
 		pending:       make(map[string]room.PendingRequest),
@@ -44,7 +65,11 @@ func NewService() *Service {
 	}
 }
 
-// SetHooks 注册跨域通知回调（由 bootstrap 装配）。
+/**
+ * @description: SetHooks 注册跨域通知回调（由 bootstrap 装配，解耦 interfaces）。
+ * @param {CatalogUpdatedHook} onCatalog 目录变更
+ * @param {PendingUpdatedHook} onPending 待审批列表变更
+ */
 func (s *Service) SetHooks(onCatalog repository.CatalogUpdatedHook, onPending repository.PendingUpdatedHook) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -75,7 +100,12 @@ func (s *Service) firePendingUpdated() {
 	}
 }
 
-// EnsureRoom 确保房间处于可配对状态。
+/**
+ * @description: EnsureRoom 打开/刷新房间，使 Peer 可提交配对。
+ * @param {string} hostDeviceID Host 设备 ID
+ * @param {string} hostBaseURL Host HTTP 根
+ * @param {string} sessionID 会话/房间 ID
+ */
 func (s *Service) EnsureRoom(hostDeviceID, hostBaseURL, sessionID string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -95,7 +125,10 @@ func (s *Service) EnsureRoom(hostDeviceID, hostBaseURL, sessionID string) {
 	}
 }
 
-// RequestPairing 提交配对请求。
+/**
+ * @description: RequestPairing Peer 提交配对；同 deviceID 重复提交会刷新展示名/URL/过期时间，保留首次 RequestedAt。
+ * @return {room.PendingRequest, error} 房间未开启返回 ErrRoomNotActive
+ */
 func (s *Service) RequestPairing(deviceID, displayName, peerBaseURL string) (room.PendingRequest, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -128,7 +161,9 @@ func (s *Service) RequestPairing(deviceID, displayName, peerBaseURL string) (roo
 	return req, nil
 }
 
-// Approve 通过指定设备的配对请求。
+/**
+ * @description: Approve Host 通过配对；成功后设备进入 members，可发 share.offer。
+ */
 func (s *Service) Approve(deviceID string) (room.Member, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -165,7 +200,10 @@ func (s *Service) Reject(deviceID string) error {
 	return nil
 }
 
-// RemoveMember 移除已入房成员，并清理其共享目录。
+/**
+ * @description: RemoveMember 移除成员并清理其目录（Peer 主动 room.leave 或 Host 踢人）。
+ * @return {catalog, revision, removed} removed=false 表示设备本就不在房间且无目录
+ */
 func (s *Service) RemoveMember(deviceID string) ([]room.SharedEntry, int, bool) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -203,7 +241,9 @@ func (s *Service) SweepExpired() []string {
 	return expired
 }
 
-// SetOwnerFiles 更新指定设备的共享文件目录。
+/**
+ * @description: SetOwnerFiles 更新某设备发布的文件分片，并返回最新聚合目录与 revision。
+ */
 func (s *Service) SetOwnerFiles(ownerID, displayName, baseURL string, files []room.SharedFileMeta) ([]room.SharedEntry, int) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -314,6 +354,7 @@ func (s *Service) RoomID() string {
 	return s.sessionID
 }
 
+// catalogLocked 在已持锁前提下按 ownerID 排序聚合全部 SharedEntry。
 func (s *Service) catalogLocked() []room.SharedEntry {
 	owners := make([]string, 0, len(s.ownerCatalogs))
 	for ownerID := range s.ownerCatalogs {
@@ -339,8 +380,13 @@ func (s *Service) catalogLocked() []room.SharedEntry {
 	return entries
 }
 
-// NotifyCatalogUpdated 供 interfaces 层在完成业务后触发（保持与旧 SetOnCatalogUpdated 一致）。
+/**
+ * @description: NotifyCatalogUpdated 由 interfaces 在目录业务完成后显式触发 hooks
+ *（例如 SyncHostCatalog 写入后）；hooks 内通常广播 room.notify + share.status。
+ */
 func (s *Service) NotifyCatalogUpdated() { s.fireCatalogUpdated() }
 
-// NotifyPendingUpdated 供 interfaces 层触发 pending 广播。
+/**
+ * @description: NotifyPendingUpdated 由 interfaces 在 pending 变化后触发（审批/超时/关房）。
+ */
 func (s *Service) NotifyPendingUpdated() { s.firePendingUpdated() }

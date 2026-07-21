@@ -1,3 +1,4 @@
+// Package share Admin WebSocket 入口：分享启停、文件/文章同步与公开目录镜像。
 package share
 
 import (
@@ -20,13 +21,13 @@ type RoomCatalogSyncer interface {
 	CloseRoom()
 }
 
-// WSController admin WebSocket：分享启停与文件列表同步。
+// WSController Admin WebSocket：分享启停与文件列表同步。
 type WSController struct {
 	share      *sharesvc.Service
 	room       *roomsvc.Service
 	mirror     *roomsvc.MirrorService
 	ws         *infraws.Client
-	roomSyncer RoomCatalogSyncer
+	roomSyncer RoomCatalogSyncer // 分享变更后同步 Host 房间目录 / 关房
 }
 
 // NewWSController 创建分享 WS 控制器。
@@ -49,7 +50,10 @@ func (c *WSController) SetRoomSyncer(syncer RoomCatalogSyncer) {
 	c.roomSyncer = syncer
 }
 
-// Register 注册 WS 处理器。
+/**
+ * @description: Register 注册 Admin 分享相关 WS 处理器与 Viewer 连接钩子。
+ * @param {*infraws.Client} client WebSocket 基础设施客户端
+ */
 func (c *WSController) Register(client *infraws.Client) {
 	client.RegisterHandler(consts.TypeShareStart, c.handleShareStart)
 	client.RegisterHandler(consts.TypeShareStop, c.handleShareStop)
@@ -60,10 +64,16 @@ func (c *WSController) Register(client *infraws.Client) {
 	client.SetViewerConnectHook(c.handleViewerConnect)
 }
 
+// handleViewerConnect Viewer 连上 WS 时立即推送 share.status；无副作用。
 func (c *WSController) handleViewerConnect(conn *infraws.Connection) {
 	c.pushShareStatus(conn)
 }
 
+/**
+ * @description: handleShareStart Admin 开启分享。
+ * 成功后 SyncHostCatalog 写入 Host 房间目录，再 BroadcastShareStatus 通知 Viewer。
+ * @return {error} 写 share.start_ack
+ */
 func (c *WSController) handleShareStart(_ context.Context, conn *infraws.Connection, _ []byte, packet infraws.Packet) error {
 	if conn.Role() != infraws.RoleAdmin {
 		return conn.WriteResponse(infraws.Error(consts.TypeShareStartAck, packet.RequestID, infraws.CodeForbidden, "admin only"))
@@ -95,6 +105,12 @@ func (c *WSController) handleShareStart(_ context.Context, conn *infraws.Connect
 	return conn.WriteResponse(infraws.Success(consts.TypeShareStartAck, packet.RequestID, status))
 }
 
+/**
+ * @description: handleShareStop Admin 停止分享。
+ * 顺序：share.Stop → CloseRoom（断开 Peer）→ mirror.Clear → BroadcastShareStatus。
+ * 权威 Host 关分享时必须清空 Peer 镜像，避免残留目录继续展示。
+ * @return {error} 写 share.stop_ack
+ */
 func (c *WSController) handleShareStop(_ context.Context, conn *infraws.Connection, _ []byte, packet infraws.Packet) error {
 	if conn.Role() != infraws.RoleAdmin {
 		return conn.WriteResponse(infraws.Error(consts.TypeShareStopAck, packet.RequestID, infraws.CodeForbidden, "admin only"))
@@ -119,6 +135,7 @@ func (c *WSController) handleShareStop(_ context.Context, conn *infraws.Connecti
 	return conn.WriteResponse(infraws.Success(consts.TypeShareStopAck, packet.RequestID, status))
 }
 
+// handleShareSync Admin 替换分享文件列表；广播 share.status 并 SyncHostCatalog；写 share.sync_ack。
 func (c *WSController) handleShareSync(_ context.Context, conn *infraws.Connection, _ []byte, packet infraws.Packet) error {
 	if conn.Role() != infraws.RoleAdmin {
 		return conn.WriteResponse(infraws.Error(consts.TypeShareSyncAck, packet.RequestID, infraws.CodeForbidden, "admin only"))
@@ -150,6 +167,7 @@ func (c *WSController) handleShareSync(_ context.Context, conn *infraws.Connecti
 	return conn.WriteResponse(infraws.Success(consts.TypeShareSyncAck, packet.RequestID, status))
 }
 
+// handleShareArticleSync Admin 替换分享文章；广播 share.status；写 share.article.sync_ack。
 func (c *WSController) handleShareArticleSync(_ context.Context, conn *infraws.Connection, _ []byte, packet infraws.Packet) error {
 	if conn.Role() != infraws.RoleAdmin {
 		return conn.WriteResponse(infraws.Error(consts.TypeShareArticleSyncAck, packet.RequestID, infraws.CodeForbidden, "admin only"))
@@ -175,7 +193,11 @@ func (c *WSController) handleShareArticleSync(_ context.Context, conn *infraws.C
 	return conn.WriteResponse(infraws.Success(consts.TypeShareArticleSyncAck, packet.RequestID, status))
 }
 
-// BroadcastShareStatus 对外导出：供 bootstrap 在房间目录变更后触发广播。
+/**
+ * @description: BroadcastShareStatus 向所有 Viewer 广播 share.status。
+ * 由 bootstrap 在房间目录变更后也会调用；不含 room.notify。
+ * @return {void}
+ */
 func (c *WSController) BroadcastShareStatus() {
 	if c.ws == nil {
 		return
@@ -184,11 +206,17 @@ func (c *WSController) BroadcastShareStatus() {
 	c.ws.BroadcastToRole(infraws.RoleViewer, infraws.Success(consts.TypeShareStatus, "", public))
 }
 
+// pushShareStatus 单连接推送 share.status；Viewer 连接钩子调用。
 func (c *WSController) pushShareStatus(conn *infraws.Connection) {
 	public := c.buildPublicStatus()
 	_ = conn.WriteResponse(infraws.Success(consts.TypeShareStatus, "", public))
 }
 
+/**
+ * @description: buildPublicStatus 组装 Viewer/HTTP 共用的公开分享状态。
+ * 权威 Host（已有成员）忽略 mirror，强制走 room.Catalog；否则可用 Peer 镜像目录。
+ * @return {share.PublicStatus}
+ */
 func (c *WSController) buildPublicStatus() share.PublicStatus {
 	status := c.share.Status()
 	var catalog []room.SharedEntry
@@ -202,10 +230,12 @@ func (c *WSController) buildPublicStatus() share.PublicStatus {
 	return sharesvc.BuildPublicShareStatus(status, catalog, mirror, resolveLocalBaseURL(c.room, c.share))
 }
 
+// publicCatalogSyncRequest Peer 聚合完整目录同步到 Host 镜像的请求体。
 type publicCatalogSyncRequest struct {
 	Catalog []room.SharedEntry `json:"catalog"`
 }
 
+// handlePublicCatalogSync Admin 写入 Peer 公开目录镜像并广播 share.status；写 room.public_catalog.sync_ack。
 func (c *WSController) handlePublicCatalogSync(_ context.Context, conn *infraws.Connection, _ []byte, packet infraws.Packet) error {
 	if conn.Role() != infraws.RoleAdmin {
 		return conn.WriteResponse(infraws.Error(consts.TypePublicCatalogSyncAck, packet.RequestID, infraws.CodeForbidden, "admin only"))
@@ -225,6 +255,7 @@ func (c *WSController) handlePublicCatalogSync(_ context.Context, conn *infraws.
 	return conn.WriteResponse(infraws.Success(consts.TypePublicCatalogSyncAck, packet.RequestID, nil))
 }
 
+// handlePublicCatalogClear Admin 清空 Peer 公开目录镜像并广播 share.status；写 room.public_catalog.clear_ack。
 func (c *WSController) handlePublicCatalogClear(_ context.Context, conn *infraws.Connection, _ []byte, packet infraws.Packet) error {
 	if conn.Role() != infraws.RoleAdmin {
 		return conn.WriteResponse(infraws.Error(consts.TypePublicCatalogClearAck, packet.RequestID, infraws.CodeForbidden, "admin only"))
@@ -237,6 +268,7 @@ func (c *WSController) handlePublicCatalogClear(_ context.Context, conn *infraws
 	return conn.WriteResponse(infraws.Success(consts.TypePublicCatalogClearAck, packet.RequestID, nil))
 }
 
+// resolveLocalBaseURL 优先 room.HostBaseURL，否则 share.HTTPBase；用于判定本机条目相对路径。
 func resolveLocalBaseURL(room *roomsvc.Service, share *sharesvc.Service) string {
 	if room != nil {
 		if base := room.HostBaseURL(); base != "" {

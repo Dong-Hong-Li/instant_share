@@ -9,10 +9,14 @@ import (
 	"github.com/google/uuid"
 )
 
-// MaxArticleContentLength 文章内容最大字符数。
+// MaxArticleContentLength 文章内容最大字符数（按 rune 计）。
 const MaxArticleContentLength = 2000
 
-// NormalizeFiles 校验本地路径并补全 id/name/size。
+/**
+ * @description: NormalizeFiles 校验本地路径存在且非目录，并补全 id/name/size。
+ * @param {[]ShareFile} files 原始文件列表（允许空）
+ * @return {[]ShareFile, error} 规范化后的列表；路径无效时返回 error
+ */
 func NormalizeFiles(files []ShareFile) ([]ShareFile, error) {
 	if len(files) == 0 {
 		return []ShareFile{}, nil
@@ -49,7 +53,11 @@ func NormalizeFiles(files []ShareFile) ([]ShareFile, error) {
 	return result, nil
 }
 
-// NormalizeArticles 校验并规范化文章列表。
+/**
+ * @description: NormalizeArticles 校验正文非空且不超过 MaxArticleContentLength，并补全 id。
+ * @param {[]ShareArticle} articles 原始文章列表（允许空）
+ * @return {[]ShareArticle, error}
+ */
 func NormalizeArticles(articles []ShareArticle) ([]ShareArticle, error) {
 	if len(articles) == 0 {
 		return []ShareArticle{}, nil
@@ -79,7 +87,11 @@ func NormalizeArticles(articles []ShareArticle) ([]ShareArticle, error) {
 	return result, nil
 }
 
-// CloneStatus 深拷贝状态中的切片。
+/**
+ * @description: CloneStatus 深拷贝 Status 中的 Files/Articles 切片，避免调用方误改内部状态。
+ * @param {Status} status 源状态
+ * @return {Status} 副本
+ */
 func CloneStatus(status Status) Status {
 	files := make([]ShareFile, len(status.Files))
 	copy(files, status.Files)

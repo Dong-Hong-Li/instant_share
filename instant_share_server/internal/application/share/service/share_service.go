@@ -11,29 +11,50 @@ import (
 	"github.com/google/uuid"
 )
 
-// Service 本机分享用例。
+// Service 本机分享用例：启停会话、同步文件/文章、按 id 查本地文件。
+//
+// 不负责配对房间与公开目录镜像；公开状态组装见 BuildPublicShareStatus。
 type Service struct {
+	// store 会话存储端口。
 	store repository.Store
-	host  string
+	// host 配置中的监听 host（预留；拼 URL 时优先用探测到的局域网 IP）。
+	host string
 }
 
-// NewService 创建分享用例服务。初始端口由 store 持有，port 参数保留以兼容装配签名。
+/**
+ * @description: NewService 创建分享用例服务。
+ * @param {repository.Store} store 会话存储（不可为 nil）
+ * @param {string} host 配置 host
+ * @param {int} port 初始端口由 store 持有；此参数保留以兼容装配签名
+ * @return {*Service}
+ */
 func NewService(store repository.Store, host string, port int) *Service {
 	_ = port
 	return &Service{store: store, host: host}
 }
 
-// Status 返回当前分享状态副本。
+/**
+ * @description: Status 返回当前分享状态副本。
+ * @return {share.Status}
+ */
 func (s *Service) Status() share.Status {
 	return s.store.Snapshot()
 }
 
-// HTTPBase 返回本机对外可访问的 HTTP 基础地址（不含 /share 后缀）。
+/**
+ * @description: HTTPBase 返回本机对外 HTTP 根（不含 /share），与 BaseURL 同源 IP/端口。
+ * @return {string} 如 http://192.168.1.10:8080
+ */
 func (s *Service) HTTPBase() string {
 	return fmt.Sprintf("http://%s:%d", util.PrimaryLocalIP(), s.store.Port())
 }
 
-// Start 开启分享会话。overridePort>0 时覆盖监听端口字段。
+/**
+ * @description: Start 开启分享会话；已 active 时返回 ErrShareActive。
+ * @param {[]share.ShareFile} files 待分享文件（允许空列表）
+ * @param {int} overridePort >0 时覆盖会话端口字段
+ * @return {share.Status, error}
+ */
 func (s *Service) Start(files []share.ShareFile, overridePort int) (share.Status, error) {
 	current := s.store.Snapshot()
 	if current.Active {
@@ -66,7 +87,11 @@ func (s *Service) Start(files []share.ShareFile, overridePort int) (share.Status
 	return s.store.Snapshot(), nil
 }
 
-// SyncFiles 分享进行中同步文件列表。
+/**
+ * @description: SyncFiles 分享进行中替换文件列表。
+ * @param {[]share.ShareFile} files
+ * @return {share.Status, error} 未 active 时 ErrShareNotActive
+ */
 func (s *Service) SyncFiles(files []share.ShareFile) (share.Status, error) {
 	current := s.store.Snapshot()
 	if !current.Active {
@@ -81,7 +106,11 @@ func (s *Service) SyncFiles(files []share.ShareFile) (share.Status, error) {
 	return s.store.Snapshot(), nil
 }
 
-// SyncArticles 分享进行中同步文章列表。
+/**
+ * @description: SyncArticles 分享进行中替换文章列表。
+ * @param {[]share.ShareArticle} articles
+ * @return {share.Status, error}
+ */
 func (s *Service) SyncArticles(articles []share.ShareArticle) (share.Status, error) {
 	current := s.store.Snapshot()
 	if !current.Active {
@@ -96,7 +125,10 @@ func (s *Service) SyncArticles(articles []share.ShareArticle) (share.Status, err
 	return s.store.Snapshot(), nil
 }
 
-// Stop 停止分享会话。
+/**
+ * @description: Stop 停止分享并清空会话。
+ * @return {share.Status, error} 未 active 时 ErrShareNotActive
+ */
 func (s *Service) Stop() (share.Status, error) {
 	current := s.store.Snapshot()
 	if !current.Active {
@@ -106,7 +138,11 @@ func (s *Service) Stop() (share.Status, error) {
 	return s.store.Snapshot(), nil
 }
 
-// FileByID 根据 ID 查找分享文件。
+/**
+ * @description: FileByID 按 id 查找本机分享文件（供下载接口使用）。
+ * @param {string} id
+ * @return {share.ShareFile, bool}
+ */
 func (s *Service) FileByID(id string) (share.ShareFile, bool) {
 	return s.store.FileByID(id)
 }

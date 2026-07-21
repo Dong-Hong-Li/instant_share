@@ -53,3 +53,16 @@ domain      →  无 inward 依赖
 - 配置：`instant_share/server/config`
 - 常量/错误文案：`instant_share/server/shared/{consts,errmsg}`
 - 业务代码：`instant_share/server/internal/...`
+
+## 5. 注释约定（对齐 bright-im）
+
+| 对象 | 写法 |
+|------|------|
+| 包 | 文件首行 `// Package xxx …` |
+| 导出类型/函数 | `// Name 一句话职责`；复杂用例用 `/** @description / @param / @return */` |
+| 结构体字段 | 行前 `// 字段含义与单位/约束` |
+| 未导出 handler | 说明「角色限制 + 行为 + 副作用（广播/清状态）」 |
+| bootstrap | `/// ====== 分段 ======` 标明装配阶段 |
+| 业务不变量 | 写在关键函数注释里（如公开状态优先级、share.stop 顺序），勿只靠代码默会 |
+
+禁止：无信息量的 `// 设置 xxx`、与符号名重复的废话注释。

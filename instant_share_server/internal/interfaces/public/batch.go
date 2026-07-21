@@ -14,6 +14,7 @@ import (
 	"instant_share/server/internal/delivery/res"
 )
 
+// handleBatchDownload GET 多文件打包 zip 下载；query ids 逗号分隔。
 func (c *Controller) handleBatchDownload(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		res.MethodNotAllowed(w)
@@ -79,6 +80,7 @@ func (c *Controller) handleBatchDownload(w http.ResponseWriter, r *http.Request)
 	}
 }
 
+// appendFileToZip 将单个分享文件写入 zip；重名由 uniqueZipEntryName 处理。
 func appendFileToZip(zw *zip.Writer, file share.ShareFile, usedNames map[string]int) error {
 	src, err := os.Open(file.Path)
 	if err != nil {
@@ -104,6 +106,7 @@ func appendFileToZip(zw *zip.Writer, file share.ShareFile, usedNames map[string]
 	return err
 }
 
+// uniqueZipEntryName 同名文件追加 (2)、(3) 后缀，避免 zip 内冲突。
 func uniqueZipEntryName(name string, usedNames map[string]int) string {
 	count, exists := usedNames[name]
 	if !exists {
