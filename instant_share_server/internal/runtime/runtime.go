@@ -8,39 +8,40 @@ import (
 	"sync"
 	"time"
 
-	"instant_share/server/internal/app"
+	"instant_share/server/cmd"
 	"instant_share/server/config"
 )
 
 // Runtime 封装一个正在运行的 HTTP/WebSocket 服务实例。
-//
-// 与 cmd/server（独立二进制，子进程模式）和 cmd/lib（c-shared 库，进程内模式）
-// 共用同一套启停逻辑：先监听拿到实际端口，再构建 app，最后在 goroutine 中 Serve。
 type Runtime struct {
 	mu       sync.Mutex
-	app      *app.App
+	deps     *cmd.AppDeps
+	cleanup  func()
 	server   *http.Server
 	listener net.Listener
 	port     int
 }
 
 // Start 监听并在后台 goroutine 中启动服务。
-//
-// 当 cfg.Port 为 0 时由系统分配空闲端口；返回的 Runtime 通过 Port() 暴露实际端口。
 func Start(cfg config.Config) (*Runtime, error) {
 	ln, err := net.Listen("tcp", cfg.Addr())
 	if err != nil {
 		return nil, err
 	}
 
-	// 用实际监听端口回填配置，保证 ServerHealth / 分享链接里的端口正确。
 	cfg.Port = ln.Addr().(*net.TCPAddr).Port
 
-	application := app.New(cfg)
-	server := &http.Server{Handler: application.Mux}
+	handler, deps, cleanup, err := cmd.Bootstrap(cfg)
+	if err != nil {
+		_ = ln.Close()
+		return nil, err
+	}
+
+	server := &http.Server{Handler: handler}
 
 	rt := &Runtime{
-		app:      application,
+		deps:     deps,
+		cleanup:  cleanup,
 		server:   server,
 		listener: ln,
 		port:     cfg.Port,
@@ -60,9 +61,9 @@ func (r *Runtime) Port() int {
 	return r.port
 }
 
-// App 返回底层应用实例（供独立二进制做生命周期收尾）。
-func (r *Runtime) App() *app.App {
-	return r.app
+// Deps 返回底层依赖（供测试或生命周期收尾）。
+func (r *Runtime) Deps() *cmd.AppDeps {
+	return r.deps
 }
 
 // Stop 优雅关闭服务（含进行中的分享会话与 WebSocket 连接）。幂等。
@@ -74,11 +75,14 @@ func (r *Runtime) Stop() {
 		return
 	}
 
-	if r.app.Share.Status().Active {
-		_, _ = r.app.Share.Stop()
+	if r.deps != nil && r.deps.Share.Status().Active {
+		_, _ = r.deps.Share.Stop()
 	}
-	if r.app.WS != nil {
-		_ = r.app.WS.Close()
+	if r.deps != nil && r.deps.WS != nil {
+		_ = r.deps.WS.Close()
+	}
+	if r.cleanup != nil {
+		r.cleanup()
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
