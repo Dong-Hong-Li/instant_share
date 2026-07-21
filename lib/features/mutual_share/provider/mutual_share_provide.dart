@@ -4,9 +4,8 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/legacy.dart';
 import 'package:instant_share/features/home/data/home_file_item.dart';
-import 'package:instant_share/infrastructure/share_server/share_server_config.dart';
+import 'package:instant_share/features/home/provider/provider.dart';
 import 'package:instant_share/infrastructure/share_server/share_server_health.dart';
-import 'package:instant_share/infrastructure/share_server/share_server_host.dart';
 import 'package:instant_share/infrastructure/share_server/share_session_service.dart';
 import 'package:instant_share/infrastructure/websocket/remote_room_client.dart';
 import 'package:instant_share/infrastructure/websocket/room_ws_models.dart';
@@ -21,14 +20,8 @@ typedef JoinedRoomHook = Future<void> Function();
 
 /// 互传分享状态。
 class MutualShareProvider extends ChangeNotifier {
-  MutualShareProvider({ShareSessionService? session})
-    : _session =
-          session ??
-          ShareSessionService(
-            serverBaseUri: ShareServerConfig.baseUriForPort(
-              ShareServerHost.instance.port ?? 0,
-            ),
-          );
+  MutualShareProvider({required ShareSessionService session})
+    : _session = session;
 
   static const _uuid = Uuid();
 
@@ -329,8 +322,10 @@ class _HostTarget {
 
 /// mutual分享状态。
 final mutualShareProvider = ChangeNotifierProvider<MutualShareProvider>((ref) {
-  /// 状态提供者。
-  final provider = MutualShareProvider();
+  // 与 home 共用同一 admin WS，避免 Go 端按 uid=admin 踢掉旧连接。
+  final provider = MutualShareProvider(
+    session: ref.read(homeProvider).shareSession,
+  );
   ref.onDispose(provider.dispose);
   return provider;
 });

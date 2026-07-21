@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:instant_share/features/home/data/home_file_item.dart';
 import 'package:instant_share/infrastructure/share_server/share_server_discovery.dart';
 import 'package:instant_share/infrastructure/share_server/share_server_health.dart';
@@ -7,12 +9,15 @@ import 'package:instant_share/infrastructure/websocket/ws_frame.dart';
 import 'package:instant_share/infrastructure/websocket/ws_share_models.dart';
 
 /// 管理 admin WebSocket 与分享会话启停。
+///
+/// Host 侧全局应只持有一份实例：Go 端按 `uid=admin` 单连接，重复 connect 会踢掉旧连接。
 class ShareSessionService {
   ShareSessionService({required Uri serverBaseUri})
     : _serverBaseUri = serverBaseUri;
 
   Uri _serverBaseUri;
   ShareWsAdminClient? _client;
+  Future<ShareWsAdminClient>? _ensureFuture;
 
   Uri get serverBaseUri => _serverBaseUri;
 
@@ -53,6 +58,7 @@ class ShareSessionService {
 
   /// 断开连接。
   Future<void> disconnect() async {
+    _ensureFuture = null;
     await _client?.disconnect();
     _client = null;
   }
@@ -82,6 +88,29 @@ class ShareSessionService {
     if (existing != null && existing.isAuthenticated) {
       return existing;
     }
+
+    final inFlight = _ensureFuture;
+    if (inFlight != null) return inFlight;
+
+    final future = _connectClient();
+    _ensureFuture = future;
+    try {
+      return await future;
+    } finally {
+      if (identical(_ensureFuture, future)) {
+        _ensureFuture = null;
+      }
+    }
+  }
+
+  Future<ShareWsAdminClient> _connectClient() async {
+    final existing = _client;
+    if (existing != null && existing.isAuthenticated) {
+      return existing;
+    }
+
+    await existing?.disconnect();
+    _client = null;
 
     final client = ShareWsAdminClient(serverBaseUri: _serverBaseUri);
     await client.connect();

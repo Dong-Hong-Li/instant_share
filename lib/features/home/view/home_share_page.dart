@@ -199,28 +199,50 @@ class _FileModeBody extends StatelessWidget {
       onClearTap: provider.clearFiles,
     );
 
+    // 房间目录占用下方高度时，分享控件可能高于可用区域；顶部限高可滚，避免溢出。
     return Padding(
       padding: EdgeInsets.fromLTRB(w24, 0, w24, h20),
-      child: Column(
-        children: [
-          SizedBox(height: h8),
-          shareControls,
-          SizedBox(height: h16),
-          if (hasFiles) ...[
-            summaryCard,
-            SizedBox(height: h12),
-            Expanded(
-              child: HomeFileList(
-                colorValue: colorValue,
-                files: provider.selectedFiles,
-                onRemove: provider.removeFile,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          // summary + 间距 + 列表最小可视高度
+          final reservedBottom = hasFiles ? (h16 + 64 + h12 + 72) : 64;
+          final topMaxHeight = (constraints.maxHeight - reservedBottom).clamp(
+            0.0,
+            constraints.maxHeight,
+          );
+
+          return Column(
+            children: [
+              ConstrainedBox(
+                constraints: BoxConstraints(maxHeight: topMaxHeight),
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      SizedBox(height: h8),
+                      shareControls,
+                    ],
+                  ),
+                ),
               ),
-            ),
-          ] else ...[
-            const Spacer(),
-            summaryCard,
-          ],
-        ],
+              if (hasFiles) ...[
+                SizedBox(height: h16),
+                summaryCard,
+                SizedBox(height: h12),
+                Expanded(
+                  child: HomeFileList(
+                    colorValue: colorValue,
+                    files: provider.selectedFiles,
+                    onRemove: provider.removeFile,
+                  ),
+                ),
+              ] else ...[
+                const Spacer(),
+                summaryCard,
+              ],
+            ],
+          );
+        },
       ),
     );
   }

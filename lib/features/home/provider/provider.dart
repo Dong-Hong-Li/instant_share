@@ -42,6 +42,9 @@ class HomeProvider extends ChangeNotifier {
 
   final ShareSessionService _session;
 
+  /// Host 唯一 admin 会话（供 mutual_share 共用，避免双连接互踢）。
+  ShareSessionService get shareSession => _session;
+
   final ShareUrlResolver _shareUrlResolver;
 
   final List<HomeFileItem> _selectedFiles = [];
@@ -605,8 +608,6 @@ class HomeProvider extends ChangeNotifier {
 final homeProvider = ChangeNotifierProvider<HomeProvider>((ref) {
   // 服务未启动时 port 为 null；用占位 URI，避免 provider 创建即崩溃。
   final port = ShareServerHost.instance.port;
-
-  /// 状态提供者。
   final provider = HomeProvider(
     ShareSessionService(
       serverBaseUri: ShareServerConfig.baseUriForPort(port ?? 0),
