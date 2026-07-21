@@ -57,3 +57,6 @@ android/app/src/main/jniLibs/**/libinstantshare.so
 android/app/src/main/jniLibs/**/*.h
 pubspec.lock
 assets/lib/instantshare-server.exe
+
+# Git worktrees (local isolation)
+.worktrees/
