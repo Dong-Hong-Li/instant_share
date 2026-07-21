@@ -61,46 +61,17 @@ class _HomeSharePageAppState extends State<HomeSharePage> {
                       provider: provider,
                       mutual: mutual,
                     )
-                  : Column(
+                  : CrossFadeSwitcher(
+                      currentIndex: isFileMode ? 0 : 1,
                       children: [
-                        Expanded(
-                          child: CrossFadeSwitcher(
-                            currentIndex: isFileMode ? 0 : 1,
-                            children: [
-                              _AppFileModeBody(
-                                colorValue: colorValue,
-                                provider: provider,
-                              ),
-                              _AppArticleShareBody(
-                                colorValue: colorValue,
-                                provider: provider,
-                              ),
-                            ],
-                          ),
+                        _AppFileModeBody(
+                          colorValue: colorValue,
+                          provider: provider,
                         ),
-                        if (mutual.shouldShowHostRoomCatalog) ...[
-                          Padding(
-                            padding: EdgeInsets.fromLTRB(w16, 0, w16, h8),
-                            child: Align(
-                              alignment: Alignment.centerLeft,
-                              child: Text(
-                                '房间共享文件',
-                                style: TextStyle(
-                                  fontSize: f14,
-                                  fontWeight: FontWeight.w600,
-                                  color: colorValue.homeTitleColor,
-                                ),
-                              ),
-                            ),
-                          ),
-                          SizedBox(
-                            height: h160,
-                            child: RoomCatalogList(
-                              colorValue: colorValue,
-                              entries: mutual.catalog,
-                            ),
-                          ),
-                        ],
+                        _AppArticleShareBody(
+                          colorValue: colorValue,
+                          provider: provider,
+                        ),
                       ],
                     ),
             ),

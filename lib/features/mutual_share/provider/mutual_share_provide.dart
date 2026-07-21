@@ -68,13 +68,6 @@ class MutualShareProvider extends ChangeNotifier {
   /// 是否已加入房间。
   bool get joinedRoom => _phase == MutualSharePhase.joinedRoom;
 
-  /// Host 展示房间目录：有已连接 Peer，或目录里出现非 host 条目。
-  bool get shouldShowHostRoomCatalog {
-    if (joinedRoom) return false;
-    if (_members.isNotEmpty) return true;
-    return _catalog.any((entry) => entry.ownerId != 'host');
-  }
-
   /// 设置加入房间后的回调。
   void setOnJoinedRoom(JoinedRoomHook? hook) {
     _onJoinedRoom = hook;
