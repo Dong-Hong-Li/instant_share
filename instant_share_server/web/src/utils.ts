@@ -2,6 +2,15 @@ export function absoluteUrl(path: string): string {
   return new URL(path, window.location.origin).href;
 }
 
+export function isSameOriginDownloadUrl(downloadUrl: string): boolean {
+  try {
+    const resolved = new URL(downloadUrl, window.location.origin);
+    return resolved.origin === window.location.origin;
+  } catch {
+    return false;
+  }
+}
+
 export function formatTotalSize(files: Array<{ size: number }>): string {
   const total = files.reduce((sum, file) => sum + file.size, 0);
   if (total <= 0) {

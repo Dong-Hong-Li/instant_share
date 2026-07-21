@@ -4,6 +4,7 @@ export interface ShareFile {
   size: number;
   size_text: string;
   download_url: string;
+  owner_display_name?: string;
 }
 
 export interface ShareArticle {

@@ -1,6 +1,6 @@
 import type { ShareArticle, ShareFile, ShareStatus } from "./api";
 import { openQrModal } from "./qr-modal";
-import { absoluteUrl, fileKind, formatTotalSize } from "./utils";
+import { absoluteUrl, fileKind, formatTotalSize, isSameOriginDownloadUrl } from "./utils";
 import { connectShareStatus } from "./ws";
 import "./style.css";
 
@@ -193,6 +193,9 @@ function renderFileRow(file: ShareFile): string {
   const downloadUrl = absoluteUrl(file.download_url);
   const kind = fileKind(file.name);
   const checked = selectedIds.has(file.id) ? "checked" : "";
+  const ownerSuffix = file.owner_display_name
+    ? `<span style="color: var(--text-muted); font-weight: 400;"> · ${escapeHtml(file.owner_display_name)}</span>`
+    : "";
 
   return `
     <tr class="file-row">
@@ -209,7 +212,7 @@ function renderFileRow(file: ShareFile): string {
         <div class="file-cell">
           <span class="file-type file-type-${kind}" aria-hidden="true">${kind.toUpperCase()}</span>
           <div class="file-meta">
-            <div class="file-name" title="${escapeHtml(file.name)}">${escapeHtml(file.name)}</div>
+            <div class="file-name" title="${escapeHtml(file.name)}">${escapeHtml(file.name)}${ownerSuffix}</div>
           </div>
         </div>
       </td>
@@ -475,10 +478,19 @@ function bindAppEvents(root: HTMLElement): void {
 
     const batchButton = target.closest<HTMLButtonElement>(".batch-download-btn");
     if (batchButton && !batchButton.disabled) {
-      const ids = currentFiles
-        .filter((file) => selectedIds.has(file.id))
-        .map((file) => file.id);
-      triggerBatchDownload(ids);
+      const selected = currentFiles.filter((file) => selectedIds.has(file.id));
+      const localFiles = selected.filter((file) =>
+        isSameOriginDownloadUrl(file.download_url),
+      );
+      const skipped = selected.length - localFiles.length;
+      if (localFiles.length === 0) {
+        window.alert("所选文件均在其他设备，请逐个下载");
+        return;
+      }
+      if (skipped > 0) {
+        window.alert(`已跳过 ${skipped} 个跨设备文件，请单独下载`);
+      }
+      triggerBatchDownload(localFiles.map((file) => file.id));
     }
   });
 
