@@ -17,8 +17,8 @@ import (
 )
 
 // MemberDisconnectGrace 已入房 Peer 断线后保留成员的宽限期；超时踢出。
-// 覆盖客户端短时重连窗口（约 1+2+4s 退避 + 单次超时），进程被杀则宽限结束后从 Host 列表消失。
-var MemberDisconnectGrace = 45 * time.Second
+// 心跳失败触发断线后约 1s 踢出，避免 Host 列表长期残留离线成员。
+var MemberDisconnectGrace = 1 * time.Second
 
 // WSController 房间 WebSocket 控制器。
 type WSController struct {
@@ -281,10 +281,10 @@ func (c *WSController) handleShareOffer(_ context.Context, conn *infraws.Connect
 	}
 
 	var req struct {
-		OwnerID  string               `json:"owner_id"`
-		BaseURL  string               `json:"base_url"`
+		OwnerID  string                `json:"owner_id"`
+		BaseURL  string                `json:"base_url"`
 		Files    []room.SharedFileMeta `json:"files"`
-		Revision int                  `json:"revision"`
+		Revision int                   `json:"revision"`
 	}
 	if len(packet.Data) > 0 {
 		if err := json.Unmarshal(packet.Data, &req); err != nil {
