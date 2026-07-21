@@ -16,17 +16,26 @@ class RemoteRoomClient {
   /// 设备 ID。
   final String deviceId;
 
+  Uri? _hostWsUrl;
   Uri? _peerBaseUrl;
   String? _displayName;
   int _revision = 0;
   StreamSubscription<WsIncomingMessage>? _incomingSub;
+  StreamSubscription<void>? _disconnectedSub;
 
   final _notifyController = StreamController<RoomNotifyEvent>.broadcast();
   final _pairingController = StreamController<PairingOutcome>.broadcast();
+  final _disconnectedController = StreamController<void>.broadcast();
+
+  /// 是否主动断开（disconnect / 重连前 teardown），用于过滤误报。
+  bool _suppressDisconnect = false;
 
   Stream<RoomNotifyEvent> get notifies => _notifyController.stream;
 
   Stream<PairingOutcome> get pairingOutcomes => _pairingController.stream;
+
+  /// 非主动关闭导致的断线（供上层短时重连）。
+  Stream<void> get disconnected => _disconnectedController.stream;
 
   /// 建立连接。
   Future<void> connect({
@@ -36,11 +45,36 @@ class RemoteRoomClient {
   }) async {
     _displayName = displayName;
     _peerBaseUrl = peerBaseUrl;
-    await _incomingSub?.cancel();
-    _incomingSub = _client.incoming.listen(_handleIncoming);
+    _hostWsUrl = hostWsUrl;
+    await _bindClient();
     await _client.connect(hostWsUrl);
     await _client.authenticate(WsAuthRequest.peer(deviceId: deviceId));
   }
+
+  /// 使用缓存参数重连并鉴权，不发起配对申请。
+  Future<void> reconnect() async {
+    final hostWsUrl = _hostWsUrl;
+    final displayName = _displayName;
+    final peerBaseUrl = _peerBaseUrl;
+    if (hostWsUrl == null || displayName == null || peerBaseUrl == null) {
+      throw const WsException(message: 'reconnect params are not ready');
+    }
+    _suppressDisconnect = true;
+    try {
+      await _client.close(intentional: true);
+    } finally {
+      _suppressDisconnect = false;
+    }
+    await _bindClient();
+    await _client.connect(hostWsUrl);
+    await _client.authenticate(WsAuthRequest.peer(deviceId: deviceId));
+  }
+
+  /// 入房后启动业务心跳。
+  void startHeartbeat() => _client.startHeartbeat();
+
+  /// 停止业务心跳。
+  void stopHeartbeat() => _client.stopHeartbeat();
 
   /// request配对。
   Future<void> requestPairing() async {
@@ -79,6 +113,7 @@ class RemoteRoomClient {
         'files': files.map((file) => file.toJson()).toList(),
         'revision': ++_revision,
       },
+      timeout: const Duration(seconds: 10),
     );
     if (response.type != WsFrameType.shareOfferAck) {
       throw WsException(message: 'unexpected response type: ${response.type}');
@@ -88,7 +123,10 @@ class RemoteRoomClient {
 
   /// 获取房间快照。
   Future<RoomSnapshot> fetchSnapshot() async {
-    final response = await _client.request(WsFrameType.roomSnapshot);
+    final response = await _client.request(
+      WsFrameType.roomSnapshot,
+      timeout: const Duration(seconds: 10),
+    );
     if (response.type != WsFrameType.roomSnapshotAck) {
       throw WsException(message: 'unexpected response type: ${response.type}');
     }
@@ -100,11 +138,45 @@ class RemoteRoomClient {
     return RoomSnapshot.fromJson(data);
   }
 
+  /// 主动离房（通知 Host 移除成员；断线前调用）。
+  Future<void> leaveRoom() async {
+    if (!_client.isAuthenticated) return;
+    final response = await _client.request(
+      WsFrameType.roomLeave,
+      timeout: const Duration(seconds: 5),
+    );
+    if (response.type != WsFrameType.roomLeaveAck) {
+      throw WsException(message: 'unexpected response type: ${response.type}');
+    }
+    response.ensureSuccess();
+  }
+
   /// 断开连接。
   Future<void> disconnect() async {
+    stopHeartbeat();
+    _suppressDisconnect = true;
+    try {
+      await _disconnectedSub?.cancel();
+      _disconnectedSub = null;
+      await _incomingSub?.cancel();
+      _incomingSub = null;
+      await _client.close(intentional: true);
+    } finally {
+      _suppressDisconnect = false;
+    }
+  }
+
+  Future<void> _bindClient() async {
     await _incomingSub?.cancel();
-    _incomingSub = null;
-    await _client.close();
+    _incomingSub = _client.incoming.listen(_handleIncoming);
+    await _disconnectedSub?.cancel();
+    _disconnectedSub = _client.disconnected.listen((_) {
+      if (_suppressDisconnect) return;
+      stopHeartbeat();
+      if (!_disconnectedController.isClosed) {
+        _disconnectedController.add(null);
+      }
+    });
   }
 
   void _handleIncoming(WsIncomingMessage message) {

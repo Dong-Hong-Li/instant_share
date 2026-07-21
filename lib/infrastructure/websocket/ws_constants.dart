@@ -81,6 +81,12 @@ abstract final class WsFrameType {
   /// roomSnapshotAck。
   static const roomSnapshotAck = 'room.snapshot_ack';
 
+  /// roomLeave Peer 主动离房。
+  static const roomLeave = 'room.leave';
+
+  /// roomLeaveAck。
+  static const roomLeaveAck = 'room.leave_ack';
+
   /// roomPublicCatalogSync。
   static const roomPublicCatalogSync = 'room.public_catalog.sync';
 

@@ -13,7 +13,7 @@ import 'package:instant_share/infrastructure/websocket/ws_frame.dart';
 import 'package:uuid/uuid.dart';
 
 /// 互传分享阶段。
-enum MutualSharePhase { idle, pairingPending, joinedRoom }
+enum MutualSharePhase { idle, pairingPending, joinedRoom, reconnecting }
 
 /// 加入房间后的回调类型。
 typedef JoinedRoomHook = Future<void> Function();
@@ -27,17 +27,30 @@ class MutualShareProvider extends ChangeNotifier {
 
   static final String _deviceId = _uuid.v4();
 
+  /// 重连前等待：1s / 2s / 4s，共 3 次。
+  static const _reconnectBackoffs = <Duration>[
+    Duration(seconds: 1),
+    Duration(seconds: 2),
+    Duration(seconds: 4),
+  ];
+
+  static const _reconnectAttemptTimeout = Duration(seconds: 10);
+  static const _offerWaitTimeout = Duration(seconds: 20);
+
   final ShareSessionService _session;
 
   RemoteRoomClient? _remote;
   StreamSubscription<PairingOutcome>? _pairingSub;
   StreamSubscription<RoomNotifyEvent>? _notifySub;
+  StreamSubscription<void>? _disconnectedSub;
   StreamSubscription<WsIncomingMessage>? _adminIncomingSub;
   Timer? _countdownTimer;
   JoinedRoomHook? _onJoinedRoom;
 
   MutualSharePhase _phase = MutualSharePhase.idle;
   int _mirrorEpoch = 0;
+  int _reconnectGeneration = 0;
+  Completer<bool>? _reconnectCompleter;
   int _countdownSeconds = 0;
   String? _errorMessage;
   String? _remoteHostBaseUrl;
@@ -66,8 +79,13 @@ class MutualShareProvider extends ChangeNotifier {
   /// 成员列表。
   List<RoomMemberDto> get members => List.unmodifiable(_members);
 
-  /// 是否已加入房间。
-  bool get joinedRoom => _phase == MutualSharePhase.joinedRoom;
+  /// 是否已加入房间（含重连中，便于 UI 保持房间视图）。
+  bool get joinedRoom =>
+      _phase == MutualSharePhase.joinedRoom ||
+      _phase == MutualSharePhase.reconnecting;
+
+  /// 是否正在短时重连。
+  bool get isReconnecting => _phase == MutualSharePhase.reconnecting;
 
   /// 设置加入房间后的回调。
   void setOnJoinedRoom(JoinedRoomHook? hook) {
@@ -124,6 +142,7 @@ class MutualShareProvider extends ChangeNotifier {
     _remote = remote;
     _pairingSub = remote.pairingOutcomes.listen(_handlePairingOutcome);
     _notifySub = remote.notifies.listen(_handleRemoteNotify);
+    _disconnectedSub = remote.disconnected.listen(_handleRemoteDisconnected);
 
     try {
       await remote.connect(
@@ -156,6 +175,18 @@ class MutualShareProvider extends ChangeNotifier {
     // 先切换本地状态（并递增 epoch），使仍在飞行中的 `_mirrorPublicCatalog`
     // 的 phase/epoch 守卫立刻失效，避免其在 clear 之后又把镜像同步回去。
     _mirrorEpoch += 1;
+    _reconnectGeneration += 1;
+    final reconnectWait = _reconnectCompleter;
+    _reconnectCompleter = null;
+    if (reconnectWait != null && !reconnectWait.isCompleted) {
+      reconnectWait.complete(false);
+    }
+
+    final remote = _remote;
+    final shouldNotifyLeave =
+        _phase == MutualSharePhase.joinedRoom ||
+        _phase == MutualSharePhase.reconnecting;
+
     final hadCatalog = _catalog.isNotEmpty;
     final stateChanged =
         _phase != MutualSharePhase.idle || _countdownSeconds != 0 || hadCatalog;
@@ -164,9 +195,21 @@ class MutualShareProvider extends ChangeNotifier {
     _catalog = const [];
     await _pairingSub?.cancel();
     await _notifySub?.cancel();
+    await _disconnectedSub?.cancel();
     _pairingSub = null;
     _notifySub = null;
-    await _remote?.disconnect();
+    _disconnectedSub = null;
+
+    // 主动离房：先通知 Host 移除成员，再断开（保留重连场景下的半开不断成员）。
+    if (shouldNotifyLeave && remote != null) {
+      try {
+        await remote.leaveRoom();
+      } catch (error) {
+        debugPrint('[MutualShareProvider] room.leave failed: $error');
+      }
+    }
+
+    await remote?.disconnect();
     _remote = null;
     if (stateChanged) {
       notifyListeners();
@@ -181,6 +224,16 @@ class MutualShareProvider extends ChangeNotifier {
 
   /// 提交共享文件。
   Future<void> offerFiles(List<HomeFileItem> files) async {
+    if (_phase == MutualSharePhase.reconnecting) {
+      final waiting = _reconnectCompleter;
+      if (waiting != null) {
+        final ok = await waiting.future.timeout(
+          _offerWaitTimeout,
+          onTimeout: () => false,
+        );
+        if (!ok) return;
+      }
+    }
     if (_phase != MutualSharePhase.joinedRoom) return;
     final remote = _remote;
     if (remote == null) return;
@@ -239,12 +292,102 @@ class MutualShareProvider extends ChangeNotifier {
     });
   }
 
+  void _handleRemoteDisconnected([_]) {
+    if (_phase == MutualSharePhase.pairingPending) {
+      _errorMessage = '与主机连接已断开';
+      unawaited(cancelPairing());
+      return;
+    }
+    if (_phase != MutualSharePhase.joinedRoom) return;
+    // 同步切入 reconnecting，避免 onError/onDone 双事件并发启动两次重连。
+    _phase = MutualSharePhase.reconnecting;
+    _remote?.stopHeartbeat();
+    final wait = Completer<bool>();
+    _reconnectCompleter = wait;
+    notifyListeners();
+    unawaited(_attemptReconnect(wait));
+  }
+
+  Future<void> _attemptReconnect(Completer<bool> wait) async {
+    final generation = ++_reconnectGeneration;
+    final remote = _remote;
+    if (remote == null) {
+      if (!wait.isCompleted) wait.complete(false);
+      if (_reconnectCompleter == wait) _reconnectCompleter = null;
+      _errorMessage = '与主机连接已断开';
+      await cancelPairing();
+      return;
+    }
+
+    var success = false;
+    for (var i = 0; i < _reconnectBackoffs.length; i++) {
+      if (generation != _reconnectGeneration ||
+          _phase != MutualSharePhase.reconnecting) {
+        return;
+      }
+      await Future<void>.delayed(_reconnectBackoffs[i]);
+      if (generation != _reconnectGeneration ||
+          _phase != MutualSharePhase.reconnecting) {
+        return;
+      }
+
+      try {
+        await remote.reconnect().timeout(_reconnectAttemptTimeout);
+        final snapshot = await remote.fetchSnapshot().timeout(
+          _reconnectAttemptTimeout,
+        );
+        if (generation != _reconnectGeneration ||
+            _phase != MutualSharePhase.reconnecting) {
+          return;
+        }
+
+        _catalog = snapshot.catalog;
+        _members = snapshot.members;
+        _phase = MutualSharePhase.joinedRoom;
+        remote.startHeartbeat();
+        notifyListeners();
+        unawaited(_mirrorPublicCatalog());
+        final hook = _onJoinedRoom;
+        if (hook != null) {
+          try {
+            await hook();
+          } catch (error) {
+            debugPrint(
+              '[MutualShareProvider] onJoinedRoom after reconnect failed: $error',
+            );
+          }
+        }
+        success = true;
+        break;
+      } catch (error) {
+        debugPrint(
+          '[MutualShareProvider] reconnect attempt ${i + 1} failed: $error',
+        );
+      }
+    }
+
+    if (generation != _reconnectGeneration) return;
+
+    if (_reconnectCompleter == wait && !wait.isCompleted) {
+      wait.complete(success);
+    }
+    if (_reconnectCompleter == wait) {
+      _reconnectCompleter = null;
+    }
+
+    if (!success) {
+      _errorMessage = '与主机连接已断开';
+      await cancelPairing();
+    }
+  }
+
   Future<void> _handlePairingOutcome(PairingOutcome outcome) async {
     switch (outcome.type) {
       case PairingOutcomeType.approved:
         _countdownTimer?.cancel();
         _phase = MutualSharePhase.joinedRoom;
         _remoteHostBaseUrl = outcome.hostBaseUrl;
+        _remote?.startHeartbeat();
         final epoch = _mirrorEpoch;
         final snapshot = await _remote?.fetchSnapshot();
         // 若等待快照期间用户已 cancel（epoch 递增/phase 被置回 idle），
@@ -291,7 +434,9 @@ class MutualShareProvider extends ChangeNotifier {
         _catalog = event.catalog;
         unawaited(_mirrorPublicCatalog());
       }
-      if (event.members.isNotEmpty) _members = event.members;
+      if (event.members.isNotEmpty || event.event == 'members_updated') {
+        _members = event.members;
+      }
     }
     notifyListeners();
   }
@@ -309,6 +454,7 @@ class MutualShareProvider extends ChangeNotifier {
     // 后的快照拉取（见 `_handlePairingOutcome`）。
     if (event.event == 'catalog_updated') {
       _catalog = event.catalog;
+      // 必须原样赋值：Peer 离房后 members 可能为空，不能用 isNotEmpty 守卫。
       _members = event.members;
     } else if (event.event == 'pending_updated') {
       _pending = event.pending;
@@ -316,7 +462,10 @@ class MutualShareProvider extends ChangeNotifier {
     } else {
       if (event.catalog.isNotEmpty) _catalog = event.catalog;
       if (event.pending.isNotEmpty) _pending = event.pending;
-      if (event.members.isNotEmpty) _members = event.members;
+      // members 允许被清空（Peer 离房）。
+      if (event.members.isNotEmpty || event.event == 'members_updated') {
+        _members = event.members;
+      }
     }
     notifyListeners();
   }

@@ -90,6 +90,18 @@ class _JoinedRoomBody extends StatelessWidget {
       padding: EdgeInsets.fromLTRB(w24, 0, w24, h16),
       child: Column(
         children: [
+          if (mutual.isReconnecting) ...[
+            Padding(
+              padding: EdgeInsets.only(bottom: h8),
+              child: Text(
+                '正在重新连接…',
+                style: TextStyle(
+                  fontSize: f13,
+                  color: colorValue.homeTitleColor.withValues(alpha: 0.72),
+                ),
+              ),
+            ),
+          ],
           Expanded(
             child: RoomCatalogList(
               colorValue: colorValue,

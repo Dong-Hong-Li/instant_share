@@ -16,6 +16,7 @@ class _HomeSharePageAppState extends State<HomeSharePage> {
     final topInset = widget.topInset;
     final isFileMode = provider.shareMode == HomeShareMode.file;
     final joinedRoom = mutual.joinedRoom;
+    _showMutualErrorIfNeeded(context);
 
     return Stack(
       children: [
@@ -116,11 +117,19 @@ class _HomeSharePageAppState extends State<HomeSharePage> {
     if (input == null || input.isEmpty) return;
     await mutual.startPairing(hostInput: input);
     if (!context.mounted) return;
+    _showMutualErrorIfNeeded(context);
+  }
+
+  void _showMutualErrorIfNeeded(BuildContext context) {
     final error = mutual.errorMessage;
-    if (error != null) {
-      showHomeShareSnackBar(context, error);
+    if (error == null) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!context.mounted) return;
+      final message = mutual.errorMessage;
+      if (message == null) return;
+      showHomeShareSnackBar(context, message);
       mutual.clearErrorMessage();
-    }
+    });
   }
 }
 

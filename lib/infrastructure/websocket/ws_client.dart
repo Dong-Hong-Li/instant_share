@@ -15,6 +15,9 @@ class WsClientConfig {
   const WsClientConfig({
     this.connectTimeout = const Duration(seconds: 10),
     this.requestTimeout = const Duration(seconds: 30),
+    this.heartbeatInterval = const Duration(seconds: 15),
+    this.heartbeatTimeout = const Duration(seconds: 5),
+    this.heartbeatMaxFailures = 2,
   });
 
   /// 连接超时。
@@ -22,6 +25,15 @@ class WsClientConfig {
 
   /// 请求超时。
   final Duration requestTimeout;
+
+  /// 心跳间隔。
+  final Duration heartbeatInterval;
+
+  /// 单次心跳超时。
+  final Duration heartbeatTimeout;
+
+  /// 连续心跳失败次数后判定死连接。
+  final int heartbeatMaxFailures;
 }
 
 /// 通用 WebSocket 客户端：连接、鉴权、request/response、二进制推送。
@@ -36,9 +48,20 @@ class WsClient {
   StreamSubscription<dynamic>? _subscription;
   final _pending = <String, Completer<WsResponse>>{};
   final _incomingController = StreamController<WsIncomingMessage>.broadcast();
+  final _disconnectedController = StreamController<void>.broadcast();
 
   Completer<WsResponse>? _authCompleter;
   WsClientState _state = WsClientState.disconnected;
+
+  /// 主动关闭时置位，避免误触发 [disconnected]。
+  bool _closingIntentionally = false;
+
+  /// 防止 _onError/_onDone 重复广播断线。
+  bool _disconnectEmitted = false;
+
+  Timer? _heartbeatTimer;
+  int _heartbeatFailures = 0;
+  bool _heartbeatInFlight = false;
 
   /// 连接状态。
   WsClientState get state => _state;
@@ -46,12 +69,17 @@ class WsClient {
   /// 入站消息流。
   Stream<WsIncomingMessage> get incoming => _incomingController.stream;
 
+  /// 非主动关闭导致的断线事件（半开探测失败、对端关闭、网络错误等）。
+  Stream<void> get disconnected => _disconnectedController.stream;
+
   /// 是否已认证。
   bool get isAuthenticated => _state == WsClientState.authenticated;
 
   /// 建立 WebSocket 连接（尚未鉴权）。
   Future<void> connect(Uri uri) async {
-    await close();
+    await close(intentional: true);
+    _closingIntentionally = false;
+    _disconnectEmitted = false;
     final channel = WebSocketChannel.connect(uri);
     _channel = channel;
     _state = WsClientState.connected;
@@ -120,14 +148,56 @@ class WsClient {
     }
   }
 
+  /// 发送业务心跳并等待 `pong`。
+  Future<void> ping({Duration? timeout}) async {
+    final response = await request(
+      WsFrameType.ping,
+      timeout: timeout ?? config.heartbeatTimeout,
+    );
+    if (response.type != WsFrameType.pong) {
+      throw WsException(
+        message: 'unexpected ping response: ${response.type}',
+        code: response.code,
+        frameType: response.type,
+        requestId: response.requestId,
+      );
+    }
+    response.ensureSuccess();
+  }
+
+  /// 启动周期性心跳；连续失败达到阈值后关闭连接并触发 [disconnected]。
+  void startHeartbeat() {
+    stopHeartbeat();
+    _heartbeatFailures = 0;
+    _heartbeatTimer = Timer.periodic(config.heartbeatInterval, (_) {
+      unawaited(_runHeartbeatTick());
+    });
+  }
+
+  /// 停止心跳。
+  void stopHeartbeat() {
+    _heartbeatTimer?.cancel();
+    _heartbeatTimer = null;
+    _heartbeatFailures = 0;
+    _heartbeatInFlight = false;
+  }
+
   /// 发送 JSON 帧，不等待响应（如心跳）。
   void send(WsPacket packet) {
     _ensureAuthenticated();
     _sink.add(jsonEncode(packet.toJson()));
   }
 
-  /// close。
-  Future<void> close() async {
+  /// 关闭连接。[intentional] 为 true 时不触发 [disconnected]。
+  Future<void> close({bool intentional = true}) async {
+    stopHeartbeat();
+    final shouldEmitDisconnect =
+        !intentional &&
+        (_channel != null || _state != WsClientState.disconnected);
+
+    // 关闭过程中一律抑制 _onDone/_onError，由本方法统一决定是否发断线事件。
+    _closingIntentionally = true;
+
     _failPending(const WsException(message: 'connection closed'));
     _authCompleter?.completeError(
       const WsException(message: 'connection closed'),
@@ -136,9 +206,18 @@ class WsClient {
 
     await _subscription?.cancel();
     _subscription = null;
-    await _channel?.sink.close();
+    try {
+      await _channel?.sink.close();
+    } catch (_) {
+      // 忽略关闭时的底层异常。
+    }
     _channel = null;
     _state = WsClientState.disconnected;
+    _closingIntentionally = false;
+
+    if (shouldEmitDisconnect) {
+      _notifyDisconnected();
+    }
   }
 
   WebSocketSink get _sink {
@@ -158,6 +237,22 @@ class WsClient {
   void _ensureAuthenticated() {
     if (_state != WsClientState.authenticated) {
       throw const WsException(message: 'websocket not authenticated');
+    }
+  }
+
+  Future<void> _runHeartbeatTick() async {
+    if (_heartbeatInFlight || _state != WsClientState.authenticated) return;
+    _heartbeatInFlight = true;
+    try {
+      await ping();
+      _heartbeatFailures = 0;
+    } catch (_) {
+      _heartbeatFailures += 1;
+      if (_heartbeatFailures >= config.heartbeatMaxFailures) {
+        await close(intentional: false);
+      }
+    } finally {
+      _heartbeatInFlight = false;
     }
   }
 
@@ -217,6 +312,12 @@ class WsClient {
     _authCompleter?.completeError(wsError);
     _authCompleter = null;
     _incomingController.addError(wsError, stackTrace);
+    stopHeartbeat();
+    _state = WsClientState.disconnected;
+    _channel = null;
+    if (!_closingIntentionally) {
+      _notifyDisconnected();
+    }
   }
 
   void _onDone() {
@@ -225,8 +326,19 @@ class WsClient {
       const WsException(message: 'connection closed'),
     );
     _authCompleter = null;
+    stopHeartbeat();
+    final wasIntentional = _closingIntentionally;
     _state = WsClientState.disconnected;
     _channel = null;
+    if (!wasIntentional) {
+      _notifyDisconnected();
+    }
+  }
+
+  void _notifyDisconnected() {
+    if (_disconnectEmitted || _disconnectedController.isClosed) return;
+    _disconnectEmitted = true;
+    _disconnectedController.add(null);
   }
 
   void _failPending(WsException error) {
