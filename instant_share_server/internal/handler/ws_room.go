@@ -15,8 +15,9 @@ import (
 
 // WSRoomHandler。
 type WSRoomHandler struct {
-	room *service.RoomService
-	ws   *websocket.Client
+	room   *service.RoomService
+	ws     *websocket.Client
+	mirror *service.PublicRoomCatalog
 
 	mu         sync.RWMutex
 	peerConns  map[string]*websocket.Connection
@@ -35,6 +36,11 @@ func NewWSRoomHandler(room *service.RoomService, ws *websocket.Client) *WSRoomHa
 		authorized: make(map[string]bool),
 		stopSweep:  make(chan struct{}),
 	}
+}
+
+// SetPublicMirror 注入 Peer 镜像目录，供 SyncHostCatalog 判定本节点是否为 Peer（镜像非空）。
+func (h *WSRoomHandler) SetPublicMirror(mirror *service.PublicRoomCatalog) {
+	h.mirror = mirror
 }
 
 // Register 注册路由。
@@ -230,6 +236,12 @@ func (h *WSRoomHandler) handleRoomSnapshot(_ context.Context, conn *websocket.Co
 // SyncHostCatalog。
 func (h *WSRoomHandler) SyncHostCatalog(status model.ShareStatus) {
 	if !status.Active {
+		return
+	}
+	// 若本节点持有非空 Peer 镜像目录，说明它正作为 Peer 镜像某个远端 Host 的聚合目录；
+	// 此时本机开始本地分享不应把自己晋升为 RoomService 的 "host"（否则会污染房间目录、
+	// 让 isRoomHost 误判并丢失 Peer 聚合到的完整目录）。镜像为空时（真正的 Host）才继续。
+	if h.mirror != nil && len(h.mirror.Entries()) > 0 {
 		return
 	}
 	hostBaseURL := status.BaseURL

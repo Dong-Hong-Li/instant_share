@@ -116,11 +116,13 @@ func resolveLocalBaseURL(room *service.RoomService, share *service.ShareService)
 	return share.HTTPBase()
 }
 
-// isRoomHost 判断本机是否为某个互传房间的 Host（RoomService 已记录 HostBaseURL）。
-// Host 构建公开状态时应始终以 RoomService.Catalog 为准，忽略 Peer 镜像目录——
-// 即便房间目录当前为空（如刚关闭分享后的瞬间），也不应回退到可能过期的镜像数据。
+// isRoomHost 判断本机是否为某个互传房间「权威 Host」——即已有至少一个通过配对审批的成员
+// （room.Members() 非空）。仅凭 HostBaseURL != "" 不足以判定 Host：Peer 自己开始本地分享时
+// 也会把 SyncHostCatalog 写入的临时 HostBaseURL 留下，若据此判定为 Host 会错误地忽略本节点
+// 作为 Peer 聚合到的镜像目录。只有真正接纳了成员的房间主机才应以 RoomService.Catalog 为准、
+// 忽略 Peer 镜像。
 func isRoomHost(room *service.RoomService) bool {
-	return room != nil && room.HostBaseURL() != ""
+	return room != nil && len(room.Members()) > 0
 }
 
 // handleShareFileDownload 处理文件下载。

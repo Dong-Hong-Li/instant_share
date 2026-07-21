@@ -10,13 +10,23 @@ import (
 	"instant_share/server/internal/service"
 )
 
-// TestHandleShareStatusHostIgnoresMirrorWhenCatalogEmpty 覆盖 P2：Host 构建公开状态时应以
-// RoomService 为准，忽略 Peer 镜像——即便房间目录当前为空（如刚关闭分享后的瞬间），也不能
-// 回退到可能过期的镜像数据。
-func TestHandleShareStatusHostIgnoresMirrorWhenCatalogEmpty(t *testing.T) {
+// TestHandleShareStatusHostWithMemberIgnoresMirror 覆盖新的权威 Host 判定：当本机是已接纳
+// 成员（room.Members() 非空）的房间 Host 时，公开状态应以 RoomService.Catalog 为准，并忽略
+// 任何残留的 Peer 镜像目录。
+func TestHandleShareStatusHostWithMemberIgnoresMirror(t *testing.T) {
 	share := service.NewShareService("127.0.0.1", 8080)
 	room := service.NewRoomService()
 	room.EnsureRoom("host", "http://192.168.1.10:8080", "session-1") // 本机是房间 Host。
+	// 通过配对审批一个 Peer 成员，使 room.Members() 非空 —— 这才是「权威 Host」。
+	if _, err := room.RequestPairing("peer-a", "Peer A", "http://192.168.1.20:8080"); err != nil {
+		t.Fatalf("RequestPairing failed: %v", err)
+	}
+	if _, err := room.Approve("peer-a"); err != nil {
+		t.Fatalf("Approve failed: %v", err)
+	}
+	room.SetOwnerFiles("host", "Host", "http://192.168.1.10:8080", []model.SharedFileMeta{
+		{ID: "room-file", Name: "room.txt", Size: 10, DownloadPath: "/api/v1/share/files/room-file/download"},
+	})
 	mirror := service.NewPublicRoomCatalog()
 	mirror.Set([]model.SharedEntry{
 		{
@@ -47,11 +57,8 @@ func TestHandleShareStatusHostIgnoresMirrorWhenCatalogEmpty(t *testing.T) {
 		t.Fatalf("decode PublicShareStatus failed: %v", err)
 	}
 
-	if len(status.Files) != 0 {
-		t.Fatalf("Files = %#v, want empty — Host must ignore Peer mirror even when room catalog is empty", status.Files)
-	}
-	if status.Active {
-		t.Fatalf("Active = true, want false — mirror-derived activity must not leak on Host")
+	if len(status.Files) != 1 || status.Files[0].ID != "room-file" {
+		t.Fatalf("Files = %#v, want only room-file — Host with members must use room catalog and ignore mirror", status.Files)
 	}
 }
 

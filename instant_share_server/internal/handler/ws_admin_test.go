@@ -212,10 +212,11 @@ func TestHandleShareStopClearsMirror(t *testing.T) {
 	}
 }
 
-// TestHandleShareStartSyncsHostCatalogBeforeBroadcast 覆盖 P2 补充发现：share.start 必须先
-// 建立 Host 身份（SyncHostCatalog）/清空 Peer 镜像，再广播 share.status，否则第一次广播时
-// isRoomHost 尚为 false、房间目录尚未写入，残留的旧 Peer 镜像会抢先顶替刚开始分享的本机文件。
-func TestHandleShareStartSyncsHostCatalogBeforeBroadcast(t *testing.T) {
+// TestHandleShareStartPeerKeepsMirror 覆盖 Critical 修复：Peer B 已作为 Peer 聚合到一份完整的
+// 跨设备镜像目录（A+B），当它自己开始本地分享时，share.start 触发的 SyncHostCatalog 不得把
+// 本机晋升为 RoomService 的 "host"（镜像非空则早退），且不得清空镜像。因此 B 的 /share 仍应
+// 展示完整的 A+B，而不是退化为只剩 B。
+func TestHandleShareStartPeerKeepsMirror(t *testing.T) {
 	tmpFile, err := os.CreateTemp(t.TempDir(), "share-*.txt")
 	if err != nil {
 		t.Fatalf("create temp file failed: %v", err)
@@ -228,18 +229,28 @@ func TestHandleShareStartSyncsHostCatalogBeforeBroadcast(t *testing.T) {
 	share := service.NewShareService("127.0.0.1", 0)
 	room := service.NewRoomService()
 	mirror := service.NewPublicRoomCatalog()
-	// 预先播种一个残留的 Peer 镜像目录（本机开始分享之前，尚未成为 Host）。
+	// 预先播种本机作为 Peer 聚合到的完整跨设备目录：A（远端）+ B（本机）。
 	mirror.Set([]model.SharedEntry{
 		{
-			ID:           "stale-mirror-file",
-			Name:         "stale.txt",
-			Size:         1,
-			BaseURL:      "http://192.168.1.20:8080",
-			DownloadPath: "/api/v1/share/files/stale-mirror-file/download",
+			ID:               "peer-a-file",
+			Name:             "a.txt",
+			Size:             1,
+			OwnerDisplayName: "Peer A",
+			BaseURL:          "http://192.168.1.20:8080",
+			DownloadPath:     "/api/v1/share/files/peer-a-file/download",
+		},
+		{
+			ID:               "peer-b-file",
+			Name:             "b.txt",
+			Size:             2,
+			OwnerDisplayName: "Peer B",
+			BaseURL:          "http://192.168.1.30:8080",
+			DownloadPath:     "/api/v1/share/files/peer-b-file/download",
 		},
 	})
 	wsClient := websocket.NewClient(config.DefaultWebSocketConfig())
 	wsRoom := NewWSRoomHandler(room, wsClient)
+	wsRoom.SetPublicMirror(mirror) // 与生产接线一致：SyncHostCatalog 才能感知镜像并早退。
 	admin := NewWSAdminHandler(share, wsClient, wsRoom, room, mirror)
 	admin.Register(wsClient)
 
@@ -254,7 +265,7 @@ func TestHandleShareStartSyncsHostCatalogBeforeBroadcast(t *testing.T) {
 	viewerConn := dialTestWS(t, wsURL, websocket.RoleViewer, "viewer-1")
 	defer viewerConn.Close()
 	readFrameOfType(t, viewerConn, "auth_ack")
-	readFrameOfType(t, viewerConn, "share.status") // 初始状态（非 Host，镜像可正常展示），忽略。
+	readFrameOfType(t, viewerConn, "share.status") // 初始状态，忽略。
 
 	sendPacket(t, adminConn, "share.start", "req-start", model.StartShareRequest{
 		Files: []model.ShareFile{{Path: tmpFile.Name()}},
@@ -266,10 +277,18 @@ func TestHandleShareStartSyncsHostCatalogBeforeBroadcast(t *testing.T) {
 	if err := json.Unmarshal(started.Data, &startedStatus); err != nil {
 		t.Fatalf("decode started share.status failed: %v", err)
 	}
-	if len(startedStatus.Files) != 1 {
-		t.Fatalf("started status Files = %#v, want exactly 1 (the just-started local file)", startedStatus.Files)
+	if len(startedStatus.Files) != 2 {
+		t.Fatalf("started status Files = %#v, want 2 (full mirror A+B), Peer local share must not shrink /share to only B", startedStatus.Files)
 	}
-	if startedStatus.Files[0].ID == "stale-mirror-file" {
-		t.Fatalf("started status Files = %#v, want local file, not stale Peer mirror (broadcast happened before host catalog sync)", startedStatus.Files)
+	ids := map[string]bool{}
+	for _, f := range startedStatus.Files {
+		ids[f.ID] = true
+	}
+	if !ids["peer-a-file"] || !ids["peer-b-file"] {
+		t.Fatalf("started status Files = %#v, want to include both peer-a-file and peer-b-file from mirror", startedStatus.Files)
+	}
+	// 房间目录不应被本机 Peer 分享污染（SyncHostCatalog 早退，未写入 "host"）。
+	if catalog, _ := room.Catalog(); len(catalog) != 0 {
+		t.Fatalf("room catalog = %#v, want empty — Peer share must not promote local files into RoomService host", catalog)
 	}
 }

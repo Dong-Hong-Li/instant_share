@@ -25,6 +25,7 @@ func New(cfg config.Config) *App {
 	mirror := service.NewPublicRoomCatalog()
 	wsClient := infraws.NewClient(cfg.WebSocket)
 	wsRoom := handler.NewWSRoomHandler(room, wsClient)
+	wsRoom.SetPublicMirror(mirror)
 	wsAdmin := handler.NewWSAdminHandler(share, wsClient, wsRoom, room, mirror)
 	wsRoom.SetOnCatalogUpdated(wsAdmin.BroadcastShareStatus)
 	wsAdmin.Register(wsClient)

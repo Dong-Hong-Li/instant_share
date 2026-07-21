@@ -17,11 +17,16 @@ func buildPublicShareStatus(
 ) model.PublicShareStatus {
 	var files []model.PublicShareFile
 
+	// 优先级：Peer 镜像目录 > 本机房间目录 > 本机分享文件。
+	// 镜像代表本节点作为 Peer 聚合到的跨设备完整目录（A+B…），它优先于本机 RoomService
+	// 目录——避免 Peer 自己开始本地分享、把自身文件写入 RoomService("host") 后，公开状态
+	// 退化为只剩本机文件而丢掉其它设备。调用方（Host 且已有成员）会传入 mirror=nil 以强制
+	// 使用房间目录。
 	switch {
-	case len(roomCatalog) > 0:
-		files = mapSharedEntriesToPublicFiles(roomCatalog, localBaseURL)
 	case len(mirror) > 0:
 		files = mapSharedEntriesToPublicFiles(mirror, localBaseURL)
+	case len(roomCatalog) > 0:
+		files = mapSharedEntriesToPublicFiles(roomCatalog, localBaseURL)
 	default:
 		files = mapShareFilesToPublicFiles(share.Files)
 	}

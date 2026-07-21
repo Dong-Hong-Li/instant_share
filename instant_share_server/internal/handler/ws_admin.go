@@ -72,13 +72,11 @@ func (h *WSAdminHandler) handleShareStart(_ context.Context, conn *websocket.Con
 		return conn.WriteResponse(websocket.Error("share.start_ack", packet.RequestID, code, err.Error()))
 	}
 
-	// 先同步 Host 目录（建立 Host 身份、清空可能残留的 Peer 镜像），再广播状态，避免第一次
-	// 广播时房间目录尚未写入、isRoomHost 尚为 false，导致过期的 Peer 镜像抢先出现在状态中。
+	// 同步 Host 目录（仅当本节点为真正的 Host、镜像为空时才会写入 RoomService，见
+	// SyncHostCatalog 的早退保护）。此处不再无条件清空 Peer 镜像——否则 Peer 一旦开始本地
+	// 分享，就会丢掉它作为 Peer 聚合到的完整跨设备目录（A+B…），导致其 /share 只剩本机文件。
 	if h.wsRoom != nil {
 		h.wsRoom.SyncHostCatalog(status)
-		if h.mirror != nil {
-			h.mirror.Clear()
-		}
 	}
 	h.broadcastShareStatus()
 	return conn.WriteResponse(websocket.Success("share.start_ack", packet.RequestID, status))
