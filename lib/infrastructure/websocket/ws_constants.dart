@@ -60,6 +60,12 @@ abstract final class WsFrameType {
   /// pairingTimeout。
   static const pairingTimeout = 'pairing.timeout';
 
+  /// Peer 主动撤回待审批申请。
+  static const pairingCancel = 'pairing.cancel';
+
+  /// pairingCancelAck。
+  static const pairingCancelAck = 'pairing.cancel_ack';
+
   /// pairingDecide。
   static const pairingDecide = 'pairing.decide';
 

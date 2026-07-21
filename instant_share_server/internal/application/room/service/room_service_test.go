@@ -35,6 +35,23 @@ func TestRoomServiceRequestPairingMergesDevice(t *testing.T) {
 	}
 }
 
+func TestRoomServiceRejectRemovesPending(t *testing.T) {
+	svc := NewService()
+	svc.EnsureRoom("host", "http://192.168.1.10:8080", "session")
+	if _, err := svc.RequestPairing("peer", "Peer", "http://192.168.1.20:8080"); err != nil {
+		t.Fatalf("request failed: %v", err)
+	}
+	if err := svc.Reject("peer"); err != nil {
+		t.Fatalf("reject failed: %v", err)
+	}
+	if len(svc.Pending()) != 0 {
+		t.Fatalf("pending should be empty after reject")
+	}
+	if _, err := svc.Approve("peer"); err != room.ErrPairingNotFound {
+		t.Fatalf("approve after reject err = %v, want ErrPairingNotFound", err)
+	}
+}
+
 func TestRoomServiceApproveMovesPendingToMembers(t *testing.T) {
 	svc := NewService()
 	svc.EnsureRoom("host", "http://192.168.1.10:8080", "session")

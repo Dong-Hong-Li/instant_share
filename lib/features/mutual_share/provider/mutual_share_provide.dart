@@ -183,6 +183,8 @@ class MutualShareProvider extends ChangeNotifier {
     }
 
     final remote = _remote;
+    // 待审批取消：必须先撤回 Host 上的 pending，否则 A 仍可「同意」把已取消的 B 加进房间。
+    final shouldWithdrawPending = _phase == MutualSharePhase.pairingPending;
     final shouldNotifyLeave =
         _phase == MutualSharePhase.joinedRoom ||
         _phase == MutualSharePhase.reconnecting;
@@ -200,12 +202,23 @@ class MutualShareProvider extends ChangeNotifier {
     _notifySub = null;
     _disconnectedSub = null;
 
-    // 主动离房：先通知 Host 移除成员，再断开（保留重连场景下的半开不断成员）。
-    if (shouldNotifyLeave && remote != null) {
-      try {
-        await remote.leaveRoom();
-      } catch (error) {
-        debugPrint('[MutualShareProvider] room.leave failed: $error');
+    if (remote != null) {
+      if (shouldWithdrawPending) {
+        try {
+          await remote.cancelPairingRequest();
+        } catch (error) {
+          debugPrint(
+            '[MutualShareProvider] pairing.cancel failed: $error',
+          );
+        }
+      }
+      // 主动离房：先通知 Host 移除成员，再断开（保留重连场景下的半开不断成员）。
+      if (shouldNotifyLeave) {
+        try {
+          await remote.leaveRoom();
+        } catch (error) {
+          debugPrint('[MutualShareProvider] room.leave failed: $error');
+        }
       }
     }
 

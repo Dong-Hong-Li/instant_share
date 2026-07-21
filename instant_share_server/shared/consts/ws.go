@@ -23,6 +23,8 @@ const (
 	TypePairingApprove        = "pairing.approve"          // 配对通过通知（→ Peer）
 	TypePairingReject         = "pairing.reject"           // 配对拒绝通知（→ Peer）
 	TypePairingTimeout        = "pairing.timeout"          // 配对请求过期（→ Peer）
+	TypePairingCancel         = "pairing.cancel"           // Peer 主动撤回待审批申请
+	TypePairingCancelAck      = "pairing.cancel_ack"       // 撤回申请应答
 	TypeShareOffer            = "share.offer"              // Peer 上报文件分片
 	TypeShareOfferAck         = "share.offer_ack"          // share.offer 应答
 	TypeRoomNotify            = "room.notify"              // 房间事件广播（catalog/pending/closed）

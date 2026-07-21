@@ -46,6 +46,7 @@ func NewWSController(room *roomsvc.Service, mirror *roomsvc.MirrorService, ws *i
  */
 func (c *WSController) Register(client *infraws.Client) {
 	client.RegisterHandler(consts.TypePairingRequest, c.handlePairingRequest)
+	client.RegisterHandler(consts.TypePairingCancel, c.handlePairingCancel)
 	client.RegisterHandler(consts.TypePairingDecide, c.handlePairingDecide)
 	client.RegisterHandler(consts.TypeShareOffer, c.handleShareOffer)
 	client.RegisterHandler(consts.TypeRoomSnapshot, c.handleRoomSnapshot)
@@ -76,7 +77,9 @@ func (c *WSController) handleConnect(role, _ string, deviceID string) {
 	}
 }
 
-// handleDisconnect Peer 断开时清理本地连接表；不主动改 room 成员。
+// handleDisconnect Peer 断开时清理本地连接表。
+// 若仍在 pending（未入房），撤销申请，避免 Host 继续审批已取消/已离线的 Peer。
+// 已入房成员不断开即踢出（重连场景保留 members）。
 func (c *WSController) handleDisconnect(role, _ string, deviceID string) {
 	if role != infraws.RolePeer {
 		return
@@ -85,6 +88,10 @@ func (c *WSController) handleDisconnect(role, _ string, deviceID string) {
 	delete(c.peerConns, deviceID)
 	delete(c.authorized, deviceID)
 	c.mu.Unlock()
+
+	if err := c.room.Reject(deviceID); err == nil {
+		c.room.NotifyPendingUpdated()
+	}
 }
 
 // handlePairingRequest Peer 提交配对；登记连接、NotifyPendingUpdated；写 pairing.request_ack。
@@ -121,6 +128,23 @@ func (c *WSController) handlePairingRequest(_ context.Context, conn *infraws.Con
 	c.mu.Unlock()
 	c.room.NotifyPendingUpdated()
 	return conn.WriteResponse(infraws.Success(consts.TypePairingRequestAck, packet.RequestID, pending))
+}
+
+// handlePairingCancel Peer 主动撤回自己的待审批申请。
+func (c *WSController) handlePairingCancel(_ context.Context, conn *infraws.Connection, _ []byte, packet infraws.Packet) error {
+	if conn.Role() != infraws.RolePeer {
+		return conn.WriteResponse(infraws.Error(consts.TypePairingCancelAck, packet.RequestID, infraws.CodeForbidden, "peer only"))
+	}
+	deviceID := conn.DeviceID()
+	if err := c.room.Reject(deviceID); err != nil {
+		// 已不在 pending（重复取消 / 已审批）视为成功，避免取消流程卡死。
+		if !errors.Is(err, room.ErrPairingNotFound) {
+			return conn.WriteResponse(infraws.Error(consts.TypePairingCancelAck, packet.RequestID, roomErrorCode(err), err.Error()))
+		}
+	} else {
+		c.room.NotifyPendingUpdated()
+	}
+	return conn.WriteResponse(infraws.Success(consts.TypePairingCancelAck, packet.RequestID, nil))
 }
 
 /**

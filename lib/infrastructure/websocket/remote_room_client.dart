@@ -151,6 +151,19 @@ class RemoteRoomClient {
     response.ensureSuccess();
   }
 
+  /// 撤回待审批配对申请（断线前调用；Host 侧清除 pending）。
+  Future<void> cancelPairingRequest() async {
+    if (!_client.isAuthenticated) return;
+    final response = await _client.request(
+      WsFrameType.pairingCancel,
+      timeout: const Duration(seconds: 5),
+    );
+    if (response.type != WsFrameType.pairingCancelAck) {
+      throw WsException(message: 'unexpected response type: ${response.type}');
+    }
+    response.ensureSuccess();
+  }
+
   /// 断开连接。
   Future<void> disconnect() async {
     stopHeartbeat();
