@@ -37,6 +37,7 @@ class MutualShareProvider extends ChangeNotifier {
   JoinedRoomHook? _onJoinedRoom;
 
   MutualSharePhase _phase = MutualSharePhase.idle;
+  int _mirrorEpoch = 0;
   int _countdownSeconds = 0;
   String? _errorMessage;
   String? _remoteHostBaseUrl;
@@ -150,24 +151,29 @@ class MutualShareProvider extends ChangeNotifier {
 
   /// cancel配对。
   Future<void> cancelPairing() async {
-    await _clearPublicCatalogMirror();
     _countdownTimer?.cancel();
     _countdownTimer = null;
+    // 先切换本地状态（并递增 epoch），使仍在飞行中的 `_mirrorPublicCatalog`
+    // 的 phase/epoch 守卫立刻失效，避免其在 clear 之后又把镜像同步回去。
+    _mirrorEpoch += 1;
+    final hadCatalog = _catalog.isNotEmpty;
+    final stateChanged =
+        _phase != MutualSharePhase.idle || _countdownSeconds != 0 || hadCatalog;
+    _phase = MutualSharePhase.idle;
+    _countdownSeconds = 0;
+    _catalog = const [];
     await _pairingSub?.cancel();
     await _notifySub?.cancel();
     _pairingSub = null;
     _notifySub = null;
     await _remote?.disconnect();
     _remote = null;
-    final hadCatalog = _catalog.isNotEmpty;
-    _catalog = const [];
-    if (_phase != MutualSharePhase.idle ||
-        _countdownSeconds != 0 ||
-        hadCatalog) {
-      _phase = MutualSharePhase.idle;
-      _countdownSeconds = 0;
+    if (stateChanged) {
       notifyListeners();
     }
+    // clear 放在状态切换之后（best-effort），此时 phase 已非 joinedRoom，
+    // 之后到达的 catalog_updated 也不会再触发新的 sync。
+    await _clearPublicCatalogMirror();
   }
 
   /// leave房间。
@@ -195,8 +201,13 @@ class MutualShareProvider extends ChangeNotifier {
   /// 将当前房间目录镜像到本机 Go（仅 Peer 已入房时；Host 由 Go 自身读取 RoomService，无需镜像）。
   Future<void> _mirrorPublicCatalog() async {
     if (_phase != MutualSharePhase.joinedRoom) return;
+    final epoch = _mirrorEpoch;
+    final snapshot = _catalog;
+    // 再次确认 epoch 未被 cancelPairing 递增，防止在此之前已通过守卫、
+    // 但即将发起 sync 的调用在 leave 之后把镜像"复活"。
+    if (epoch != _mirrorEpoch || _phase != MutualSharePhase.joinedRoom) return;
     try {
-      await _session.syncPublicRoomCatalog(_catalog);
+      await _session.syncPublicRoomCatalog(snapshot);
     } catch (error) {
       debugPrint('[MutualShareProvider] public catalog sync failed: $error');
     }
