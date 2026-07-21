@@ -70,6 +70,16 @@ class SharedEntryDto {
   /// 下载链接。
   Uri get downloadUri => Uri.parse(baseUrl).resolve(downloadPath);
 
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'name': name,
+    'size': size,
+    'owner_id': ownerId,
+    if (ownerDisplayName != null) 'owner_display_name': ownerDisplayName,
+    'base_url': baseUrl,
+    'download_path': downloadPath,
+  };
+
   factory SharedEntryDto.fromJson(Map<String, dynamic> json) => SharedEntryDto(
     id: json['id'] as String? ?? '',
     name: json['name'] as String? ?? '',

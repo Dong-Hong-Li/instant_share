@@ -150,6 +150,7 @@ class MutualShareProvider extends ChangeNotifier {
 
   /// cancel配对。
   Future<void> cancelPairing() async {
+    await _clearPublicCatalogMirror();
     _countdownTimer?.cancel();
     _countdownTimer = null;
     await _pairingSub?.cancel();
@@ -158,7 +159,11 @@ class MutualShareProvider extends ChangeNotifier {
     _notifySub = null;
     await _remote?.disconnect();
     _remote = null;
-    if (_phase != MutualSharePhase.idle || _countdownSeconds != 0) {
+    final hadCatalog = _catalog.isNotEmpty;
+    _catalog = const [];
+    if (_phase != MutualSharePhase.idle ||
+        _countdownSeconds != 0 ||
+        hadCatalog) {
       _phase = MutualSharePhase.idle;
       _countdownSeconds = 0;
       notifyListeners();
@@ -185,6 +190,25 @@ class MutualShareProvider extends ChangeNotifier {
           )
           .toList(),
     );
+  }
+
+  /// 将当前房间目录镜像到本机 Go（仅 Peer 已入房时；Host 由 Go 自身读取 RoomService，无需镜像）。
+  Future<void> _mirrorPublicCatalog() async {
+    if (_phase != MutualSharePhase.joinedRoom) return;
+    try {
+      await _session.syncPublicRoomCatalog(_catalog);
+    } catch (error) {
+      debugPrint('[MutualShareProvider] public catalog sync failed: $error');
+    }
+  }
+
+  /// 清空本机 Go 上的公共房间目录镜像（离房时最好努力尝试一次）。
+  Future<void> _clearPublicCatalogMirror() async {
+    try {
+      await _session.clearPublicRoomCatalog();
+    } catch (error) {
+      debugPrint('[MutualShareProvider] public catalog clear failed: $error');
+    }
   }
 
   void _startCountdown() {
@@ -216,6 +240,7 @@ class MutualShareProvider extends ChangeNotifier {
           _members = snapshot.members;
         }
         notifyListeners();
+        unawaited(_mirrorPublicCatalog());
         // 入房后立刻把本机已选文件 offer 进房间目录。
         final hook = _onJoinedRoom;
         if (hook != null) {
@@ -243,8 +268,12 @@ class MutualShareProvider extends ChangeNotifier {
     if (event.event == 'catalog_updated') {
       _catalog = event.catalog;
       _members = event.members;
+      unawaited(_mirrorPublicCatalog());
     } else {
-      if (event.catalog.isNotEmpty) _catalog = event.catalog;
+      if (event.catalog.isNotEmpty) {
+        _catalog = event.catalog;
+        unawaited(_mirrorPublicCatalog());
+      }
       if (event.members.isNotEmpty) _members = event.members;
     }
     notifyListeners();
@@ -260,11 +289,15 @@ class MutualShareProvider extends ChangeNotifier {
     if (event.event == 'catalog_updated') {
       _catalog = event.catalog;
       _members = event.members;
+      unawaited(_mirrorPublicCatalog());
     } else if (event.event == 'pending_updated') {
       _pending = event.pending;
       _members = event.members;
     } else {
-      if (event.catalog.isNotEmpty) _catalog = event.catalog;
+      if (event.catalog.isNotEmpty) {
+        _catalog = event.catalog;
+        unawaited(_mirrorPublicCatalog());
+      }
       if (event.pending.isNotEmpty) _pending = event.pending;
       if (event.members.isNotEmpty) _members = event.members;
     }

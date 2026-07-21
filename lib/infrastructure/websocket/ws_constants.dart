@@ -81,6 +81,18 @@ abstract final class WsFrameType {
   /// roomSnapshotAck。
   static const roomSnapshotAck = 'room.snapshot_ack';
 
+  /// roomPublicCatalogSync。
+  static const roomPublicCatalogSync = 'room.public_catalog.sync';
+
+  /// roomPublicCatalogSyncAck。
+  static const roomPublicCatalogSyncAck = 'room.public_catalog.sync_ack';
+
+  /// roomPublicCatalogClear。
+  static const roomPublicCatalogClear = 'room.public_catalog.clear';
+
+  /// roomPublicCatalogClearAck。
+  static const roomPublicCatalogClearAck = 'room.public_catalog.clear_ack';
+
   /// file列表。
   static const fileList = 'file.list';
 

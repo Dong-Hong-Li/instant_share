@@ -83,6 +83,18 @@ class ShareSessionService {
     return client.decidePairing(deviceId, approve: approve);
   }
 
+  /// 同步公共房间目录到本机 Go（Peer 侧镜像，供 `/share` 使用）。
+  Future<void> syncPublicRoomCatalog(List<SharedEntryDto> catalog) async {
+    final client = await _ensureClient();
+    return client.syncPublicRoomCatalog(catalog);
+  }
+
+  /// 清空本机 Go 上的公共房间目录镜像。
+  Future<void> clearPublicRoomCatalog() async {
+    final client = await _ensureClient();
+    return client.clearPublicRoomCatalog();
+  }
+
   Future<ShareWsAdminClient> _ensureClient() async {
     final existing = _client;
     if (existing != null && existing.isAuthenticated) {

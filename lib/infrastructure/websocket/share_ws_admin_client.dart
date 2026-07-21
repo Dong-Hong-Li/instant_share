@@ -155,6 +155,33 @@ class ShareWsAdminClient {
     return RoomSnapshot.fromJson(data);
   }
 
+  /// 同步公共房间目录到本机 Go（Peer 侧镜像，供 `/share` 使用）。
+  Future<void> syncPublicRoomCatalog(List<SharedEntryDto> catalog) async {
+    final response = await _client.request(
+      WsFrameType.roomPublicCatalogSync,
+      data: {'catalog': catalog.map((e) => e.toJson()).toList()},
+    );
+    if (!response.isSuccess) {
+      throw StateError(
+        response.message.isEmpty
+            ? 'public catalog sync failed'
+            : response.message,
+      );
+    }
+  }
+
+  /// 清空本机 Go 上的公共房间目录镜像。
+  Future<void> clearPublicRoomCatalog() async {
+    final response = await _client.request(WsFrameType.roomPublicCatalogClear);
+    if (!response.isSuccess) {
+      throw StateError(
+        response.message.isEmpty
+            ? 'public catalog clear failed'
+            : response.message,
+      );
+    }
+  }
+
   Future<void> disconnect() => _client.close();
 
   ShareStatusDto _parseShareStatus(WsResponse response, String expectedType) {
