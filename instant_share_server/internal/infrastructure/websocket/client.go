@@ -53,6 +53,7 @@ func NewClient(cfg config.WebSocketConfig) *Client {
 	return c
 }
 
+// handlePing 处理心跳。
 func handlePing(_ context.Context, conn *Connection, _ []byte, packet Packet) error {
 	return conn.WriteResponse(Success("pong", packet.RequestID, nil))
 }
@@ -132,10 +133,12 @@ func (c *Client) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	c.readLoop(r.Context(), conn)
 }
 
+// GetConnection 获取连接。
 func (c *Client) GetConnection(uid, deviceID string) (*Connection, bool) {
 	return c.manager.Get(uid, deviceID)
 }
 
+// SendToDevice 向指定设备发送消息。
 func (c *Client) SendToDevice(uid, deviceID string, packet any) error {
 	conn, ok := c.manager.Get(uid, deviceID)
 	if !ok {
@@ -144,16 +147,20 @@ func (c *Client) SendToDevice(uid, deviceID string, packet any) error {
 	return conn.WriteJSON(packet)
 }
 
+// ConnectionCount 返回连接数量。
 func (c *Client) ConnectionCount() int {
 	return c.manager.Count()
 }
 
+// BroadcastToRole 按角色广播消息。
 func (c *Client) BroadcastToRole(role string, packet any) {
 	c.manager.BroadcastByRole(role, packet)
 }
 
+// Close 关闭房间并清空状态。
 func (c *Client) Close() error {
 	conns := c.allConnections()
+	// lastErr。
 	var lastErr error
 	for _, conn := range conns {
 		if err := conn.Close(); err != nil {
@@ -163,6 +170,7 @@ func (c *Client) Close() error {
 	return lastErr
 }
 
+// allConnections 返回所有连接。
 func (c *Client) allConnections() []*Connection {
 	c.manager.mu.RLock()
 	defer c.manager.mu.RUnlock()
@@ -174,6 +182,7 @@ func (c *Client) allConnections() []*Connection {
 	return conns
 }
 
+// authenticate 处理连接鉴权。
 func (c *Client) authenticate(ctx context.Context, conn *Connection, r *http.Request) (AuthRequest, string, string, error) {
 	req := AuthRequest{
 		Type:     "auth",
@@ -199,6 +208,7 @@ func (c *Client) authenticate(ctx context.Context, conn *Connection, r *http.Req
 	return req, role, uid, nil
 }
 
+// readLoop 读取 WS 消息。
 func (c *Client) readLoop(ctx context.Context, conn *Connection) {
 	conn.raw().SetReadLimit(c.cfg.ReadLimit)
 	pongWait := c.cfg.PongWait()
@@ -257,7 +267,9 @@ func (c *Client) readLoop(ctx context.Context, conn *Connection) {
 	}
 }
 
+// dispatch 分发 WS 消息。
 func (c *Client) dispatch(ctx context.Context, conn *Connection, payload []byte) {
+	// packet。
 	var packet Packet
 	if err := json.Unmarshal(payload, &packet); err != nil {
 		_ = conn.WriteResponse(Error("error", "", CodeBadRequest, "invalid json"))
@@ -277,7 +289,7 @@ func (c *Client) dispatch(ctx context.Context, conn *Connection, payload []byte)
 	}
 }
 
-// DefaultAuth 默认鉴权：admin 控制分享，viewer 订阅分享状态。
+// DefaultAuth 默认鉴权：admin 控制分享，viewer 订阅分享状态，peer 申请加入房间。
 func DefaultAuth(_ context.Context, req AuthRequest) (string, string, error) {
 	role := strings.TrimSpace(req.Role)
 	deviceID := strings.TrimSpace(req.DeviceID)
@@ -291,7 +303,9 @@ func DefaultAuth(_ context.Context, req AuthRequest) (string, string, error) {
 		return role, RoleAdmin, nil
 	case RoleViewer:
 		return role, deviceID, nil
+	case RolePeer:
+		return role, deviceID, nil
 	default:
-		return "", "", errors.New("role must be admin or viewer")
+		return "", "", errors.New("role must be admin, viewer, or peer")
 	}
 }

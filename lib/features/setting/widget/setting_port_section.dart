@@ -15,6 +15,7 @@ import 'package:instant_share/resource/screen_utils/layout_dimens_w.dart';
 
 /// 自定义端口被占用时的引导对话框；返回 true 表示前往设置。
 Future<bool> showSharePortOccupiedDialog(BuildContext context) async {
+  /// result。
   final result = await showDialog<bool>(
     context: context,
     builder: (context) {
@@ -45,20 +46,27 @@ class SettingPortSection extends ConsumerStatefulWidget {
     required this.isSharing,
   });
 
+  /// 颜色配置。
   final ColorValue colorValue;
+
+  /// 是否正在分享。
   final bool isSharing;
 
+  /// 创建状态对象。
   @override
   ConsumerState<SettingPortSection> createState() => _SettingPortSectionState();
 }
 
 class _SettingPortSectionState extends ConsumerState<SettingPortSection> {
   late final ExpandAbleController _expandController;
+
   late final TextEditingController _textController;
+
   late final FocusNode _portFocusNode;
   int _lastFocusTick = 0;
   bool _syncingText = false;
 
+  /// 初始化状态。
   @override
   void initState() {
     super.initState();
@@ -73,6 +81,7 @@ class _SettingPortSectionState extends ConsumerState<SettingPortSection> {
     _lastFocusTick = provider.focusTick;
   }
 
+  /// 释放资源。
   @override
   void dispose() {
     _portFocusNode.removeListener(_onFocusChanged);
@@ -124,18 +133,17 @@ class _SettingPortSectionState extends ConsumerState<SettingPortSection> {
   }
 
   Future<void> _onToggle(bool enabled) async {
-    final result = await ref.read(settingProvider).onToggle(
-          enabled: enabled,
-          isSharing: widget.isSharing,
-        );
+    final result = await ref
+        .read(settingProvider)
+        .onToggle(enabled: enabled, isSharing: widget.isSharing);
     if (!mounted) return;
     _showApplyResult(result);
   }
 
   Future<void> _onSave() async {
-    final result = await ref.read(settingProvider).savePort(
-          isSharing: widget.isSharing,
-        );
+    final result = await ref
+        .read(settingProvider)
+        .savePort(isSharing: widget.isSharing);
     if (!mounted) return;
     _showApplyResult(result);
   }
@@ -144,6 +152,7 @@ class _SettingPortSectionState extends ConsumerState<SettingPortSection> {
     await ref.read(settingProvider).checkPort(isSharing: widget.isSharing);
   }
 
+  /// 构建界面。
   @override
   Widget build(BuildContext context) {
     final provider = ref.watch(settingProvider);
@@ -213,7 +222,9 @@ class _SettingPortSectionState extends ConsumerState<SettingPortSection> {
                               HomePalette.switchOnGradient.colors.last,
                           activeThumbColor: HomePalette.switchIconOn,
                           inactiveTrackColor: HomePalette
-                              .switchOffGradient.colors.last
+                              .switchOffGradient
+                              .colors
+                              .last
                               .withValues(alpha: 0.55),
                           inactiveThumbColor: HomePalette.switchIconOff,
                         ),
@@ -259,7 +270,8 @@ class _SettingPortSectionState extends ConsumerState<SettingPortSection> {
                                       fillColor: softFill,
                                       isDense: true,
                                       labelText: '端口',
-                                      hintText: SettingPortMessages.portRangeHint,
+                                      hintText:
+                                          SettingPortMessages.portRangeHint,
                                       labelStyle: TextStyle(
                                         fontSize: f13,
                                         color: muted,
@@ -273,30 +285,42 @@ class _SettingPortSectionState extends ConsumerState<SettingPortSection> {
                                         vertical: h12,
                                       ),
                                       enabledBorder: OutlineInputBorder(
-                                        borderRadius: BorderRadius.circular(s12),
-                                        borderSide:
-                                            BorderSide(color: softBorder),
+                                        borderRadius: BorderRadius.circular(
+                                          s12,
+                                        ),
+                                        borderSide: BorderSide(
+                                          color: softBorder,
+                                        ),
                                       ),
                                       focusedBorder: OutlineInputBorder(
-                                        borderRadius: BorderRadius.circular(s12),
+                                        borderRadius: BorderRadius.circular(
+                                          s12,
+                                        ),
                                         borderSide: BorderSide(
                                           color: ink.withValues(alpha: 0.45),
                                           width: 1.4,
                                         ),
                                       ),
                                       disabledBorder: OutlineInputBorder(
-                                        borderRadius: BorderRadius.circular(s12),
-                                        borderSide:
-                                            BorderSide(color: softBorder),
+                                        borderRadius: BorderRadius.circular(
+                                          s12,
+                                        ),
+                                        borderSide: BorderSide(
+                                          color: softBorder,
+                                        ),
                                       ),
                                       errorBorder: OutlineInputBorder(
-                                        borderRadius: BorderRadius.circular(s12),
+                                        borderRadius: BorderRadius.circular(
+                                          s12,
+                                        ),
                                         borderSide: const BorderSide(
                                           color: Color(0xFFD97A6C),
                                         ),
                                       ),
                                       focusedErrorBorder: OutlineInputBorder(
-                                        borderRadius: BorderRadius.circular(s12),
+                                        borderRadius: BorderRadius.circular(
+                                          s12,
+                                        ),
                                         borderSide: const BorderSide(
                                           color: Color(0xFFD97A6C),
                                           width: 1.4,
@@ -368,10 +392,7 @@ class _SettingPortSectionState extends ConsumerState<SettingPortSection> {
                       SizedBox(height: h12),
                       Text(
                         SettingPortMessages.sharingLocked,
-                        style: TextStyle(
-                          fontSize: f12,
-                          color: muted,
-                        ),
+                        style: TextStyle(fontSize: f12, color: muted),
                       ),
                     ],
                   ],
@@ -395,13 +416,25 @@ class _PortActionChip extends StatelessWidget {
     this.emphasized = false,
   });
 
+  /// label。
   final String label;
+
+  /// 是否启用。
   final bool enabled;
+
+  /// ink。
   final Color ink;
+
+  /// softFill。
   final Color softFill;
+
+  /// 点击回调。
   final VoidCallback onTap;
+
+  /// emphasized。
   final bool emphasized;
 
+  /// 构建界面。
   @override
   Widget build(BuildContext context) {
     final fg = enabled ? ink : ink.withValues(alpha: 0.35);

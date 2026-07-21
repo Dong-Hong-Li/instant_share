@@ -4,6 +4,9 @@ import 'package:flutter/material.dart';
 class TabNavItem {
   const TabNavItem({required this.icon, required this.label});
 
+  /// icon。
   final IconData icon;
+
+  /// label。
   final String label;
 }

@@ -18,9 +18,12 @@ class ScreenDesignConfig {
   static Size get designSize =>
       CommonContext.isDesktop ? desktopDesignSize : mobileDesignSize;
 
+  /// 设计宽度。
   static double get designWidth => designSize.width;
 
+  /// 设计高度。
   static double get designHeight => designSize.height;
 
+  /// 设计宽高比。
   static double get designAspectRatio => designWidth / designHeight;
 }

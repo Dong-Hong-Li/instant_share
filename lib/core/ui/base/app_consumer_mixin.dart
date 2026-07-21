@@ -28,6 +28,7 @@ mixin AppConsumerMixin on CommonMixin {
   /// 页面内容。子页面在 build 中通过 ref 访问 provider。
   Widget buildPage(BuildContext context, WidgetRef ref);
 
+  /// build页面WithRef。
   Widget buildPageWithRef(BuildContext context) {
     return Consumer(
       builder: (context, ref, _) {

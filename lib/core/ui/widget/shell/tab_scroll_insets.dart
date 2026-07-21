@@ -8,14 +8,18 @@ import 'package:instant_share/core/ui/widget/shell/bottom_tab_bar_view.dart';
 abstract final class TabScrollInsets {
   TabScrollInsets._();
 
+  /// extraBottom。
   static const double extraBottom = 10;
 
+  /// bottom。
   static double bottom(BuildContext context) =>
       BottomTabBarView.overlayHeight(context) + extraBottom;
 
+  /// onlyBottom。
   static EdgeInsets onlyBottom(BuildContext context) =>
       EdgeInsets.only(bottom: bottom(context));
 
+  /// merge。
   static EdgeInsets merge(
     BuildContext context, {
     double left = 0,

@@ -1,3 +1,4 @@
+/// 对象工具。
 class ObjectUtil {
   /// Returns true  String or List or Map is empty.
   static bool isEmpty(Object? object) {

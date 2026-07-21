@@ -9,6 +9,7 @@ import 'package:instant_share/resource/screen_utils/layout_dimens_w.dart';
 class HomeArticleHelpHint extends StatelessWidget {
   const HomeArticleHelpHint({super.key, required this.colorValue});
 
+  /// 颜色配置。
   final ColorValue colorValue;
 
   static const _steps = [
@@ -16,6 +17,7 @@ class HomeArticleHelpHint extends StatelessWidget {
     '点击文章卡片可多选待分享内容（蓝色为已选中，绿色为分享中）',
   ];
 
+  /// 构建界面。
   @override
   Widget build(BuildContext context) {
     final iconColor = colorValue.homeUploadIconColor;

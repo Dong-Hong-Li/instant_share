@@ -15,7 +15,10 @@ enum TabSidebarItem {
 
   const TabSidebarItem(this.label, this.icon);
 
+  /// label。
   final String label;
+
+  /// icon。
   final IconData icon;
 
   /// [sharing] 为 true 时额外展示「链接」。
@@ -36,13 +39,25 @@ class TabSidebar extends StatelessWidget {
     this.topPadding = 0,
   });
 
+  /// 颜色配置。
   final ColorValue colorValue;
+
+  /// sharing。
   final bool sharing;
+
+  /// visibleTabs。
   final List<TabSidebarItem> visibleTabs;
+
+  /// 是否选中。
   final TabSidebarItem selected;
+
+  /// onSelected。
   final ValueChanged<TabSidebarItem> onSelected;
+
+  /// topPadding。
   final double topPadding;
 
+  /// 构建界面。
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -84,8 +99,10 @@ class TabSidebar extends StatelessWidget {
 class _Logo extends StatelessWidget {
   const _Logo({required this.colorValue});
 
+  /// 颜色配置。
   final ColorValue colorValue;
 
+  /// 构建界面。
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -109,12 +126,22 @@ class _NavItem extends StatelessWidget {
     required this.onTap,
   });
 
+  /// 颜色配置。
   final ColorValue colorValue;
+
+  /// sharing。
   final bool sharing;
+
+  /// tab。
   final TabSidebarItem tab;
+
+  /// 是否激活。
   final bool active;
+
+  /// 点击回调。
   final VoidCallback onTap;
 
+  /// 构建界面。
   @override
   Widget build(BuildContext context) {
     final activeColor = HomePalette.sidebarForeground(
@@ -178,11 +205,19 @@ class _NavIconButton extends StatelessWidget {
     required this.onTap,
   });
 
+  /// 颜色配置。
   final ColorValue colorValue;
+
+  /// sharing。
   final bool sharing;
+
+  /// icon。
   final IconData icon;
+
+  /// 点击回调。
   final VoidCallback onTap;
 
+  /// 构建界面。
   @override
   Widget build(BuildContext context) {
     return GestureDetector(

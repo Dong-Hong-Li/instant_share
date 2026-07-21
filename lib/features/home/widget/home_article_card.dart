@@ -21,16 +21,28 @@ class HomeArticleCard extends StatelessWidget {
     required this.onDeleteTap,
   });
 
+  /// 颜色配置。
   final ColorValue colorValue;
+
+  /// 文章。
   final HomeArticleItem article;
+
+  /// 是否选中。
   final bool selected;
+
+  /// 是否已分享。
   final bool shared;
+
+  /// 点击回调。
   final VoidCallback onTap;
+
+  /// 删除回调。
   final VoidCallback onDeleteTap;
 
   bool get _isShared => shared;
   bool get _isSelected => selected && !shared;
 
+  /// 构建界面。
   @override
   Widget build(BuildContext context) {
     final iconColor = colorValue.homeUploadIconColor;

@@ -6,6 +6,7 @@ import 'package:instant_share/resource/screen_utils/layout_dimens_h.dart';
 import 'package:instant_share/resource/screen_utils/layout_dimens_w.dart';
 import 'package:window_manager/window_manager.dart';
 
+/// show首页分享SnackBar。
 void showHomeShareSnackBar(BuildContext context, String message) {
   ScaffoldMessenger.of(context).showSnackBar(
     SnackBar(
@@ -25,13 +26,19 @@ class HomeSharePageShell extends StatelessWidget {
     this.topRight,
   });
 
+  /// topInset。
   final double topInset;
+
+  /// body。
   final Widget body;
+
+  /// topRight。
   final Widget? topRight;
 
   bool get _useMacOsTitleBarInset =>
       DesktopWindowConfig.usesHiddenTitleBar && Platform.isMacOS;
 
+  /// 构建界面。
   @override
   Widget build(BuildContext context) {
     final content = Stack(

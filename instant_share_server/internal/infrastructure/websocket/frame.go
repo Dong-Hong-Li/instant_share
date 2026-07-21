@@ -26,20 +26,29 @@ type Response struct {
 }
 
 const (
-	CodeSuccess      = 0
-	CodeBadRequest   = 400
+	// CodeSuccess。
+	CodeSuccess = 0
+	// CodeBadRequest。
+	CodeBadRequest = 400
+	// CodeUnauthorized。
 	CodeUnauthorized = 401
-	CodeForbidden    = 403
-	CodeNotFound     = 404
-	CodeConflict     = 409
-	CodeInternal     = 500
+	// CodeForbidden。
+	CodeForbidden = 403
+	// CodeNotFound。
+	CodeNotFound = 404
+	// CodeConflict。
+	CodeConflict = 409
+	CodeInternal = 500
 
 	// RoleAdmin 发起者（谁启动 Go 服务 / Flutter 桌面端）。
 	RoleAdmin = "admin"
 	// RoleViewer 接收者（PC Web 浏览页，只读订阅分享状态）。
 	RoleViewer = "viewer"
+	// RolePeer 经 Host 审批后加入共享房间的 App 对端。
+	RolePeer = "peer"
 )
 
+// Success。
 func Success(packetType, requestID string, data any) Response {
 	return Response{
 		Type:      packetType,
@@ -50,6 +59,7 @@ func Success(packetType, requestID string, data any) Response {
 	}
 }
 
+// Error。
 func Error(packetType, requestID string, code int, message string) Response {
 	return Response{
 		Type:      packetType,

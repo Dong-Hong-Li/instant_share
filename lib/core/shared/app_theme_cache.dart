@@ -3,20 +3,27 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:instant_share/core/shared/theme_manager.dart'; // AppThemeMode
 import 'package:instant_share/l10n/app_localizations.dart';
 
+/// 应用主题Cache。
 class AppThemeCache {
   static const String _themeKey = 'theme_mode';
+
   static const String _localeKey = 'cache_locale';
 
-  static List<Locale> get supportedLocales => AppLocalizations.supportedLocales();
+  /// 支持的语言列表。
+  static List<Locale> get supportedLocales =>
+      AppLocalizations.supportedLocales();
 
+  /// default语言。
   static Locale get defaultLocale => supportedLocales.first;
 
+  /// localeMatches。
   static bool localeMatches(Locale a, Locale b) {
     return a.languageCode == b.languageCode &&
         (a.scriptCode ?? '') == (b.scriptCode ?? '') &&
         (a.countryCode ?? '') == (b.countryCode ?? '');
   }
 
+  /// isSupported。
   static bool isSupported(Locale locale) {
     return supportedLocales.any((l) => localeMatches(l, locale));
   }
@@ -30,6 +37,7 @@ class AppThemeCache {
     );
   }
 
+  /// get主题Mode。
   static Future<ThemeMode> getThemeMode() async {
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -42,6 +50,7 @@ class AppThemeCache {
     }
   }
 
+  /// set主题Mode。
   static Future<void> setThemeMode(ThemeMode mode) async {
     final prefs = await SharedPreferences.getInstance();
     final s = mode == ThemeMode.light
@@ -52,6 +61,7 @@ class AppThemeCache {
     await prefs.setString(_themeKey, s);
   }
 
+  /// get应用主题Mode。
   static Future<AppThemeMode> getAppThemeMode() async {
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -62,10 +72,12 @@ class AppThemeCache {
     }
   }
 
+  /// set应用主题Mode。
   static Future<void> setAppThemeMode(AppThemeMode mode) async {
     await setThemeMode(mode.toThemeMode());
   }
 
+  /// getLocal。
   static Future<Locale?> getLocal() async {
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -79,12 +91,14 @@ class AppThemeCache {
     }
   }
 
+  /// setLocal。
   static Future<void> setLocal(Locale locale) async {
     final resolved = resolveLocale(locale);
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_localeKey, resolved.toLanguageTag());
   }
 
+  /// clearAll。
   static Future<void> clearAll() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_themeKey);

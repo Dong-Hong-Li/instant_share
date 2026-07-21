@@ -22,6 +22,7 @@ import 'package:instant_share/core/ui/widget/desktop_window_frame.dart';
 import 'package:instant_share/l10n/app_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+/// 应用入口。
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await DesktopWindowConfig.ensureInitialized();
@@ -31,6 +32,7 @@ Future<void> main() async {
   runAppEntry();
 }
 
+/// 启动应用入口。
 void runAppEntry() {
   runZonedGuarded(() async {
     PaintingBinding.instance.imageCache.maximumSizeBytes = 1000 * 1024 * 1024;
@@ -53,9 +55,11 @@ void runAppEntry() {
   }, LoggerManager.handleError);
 }
 
+/// 应用根组件。
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
+  /// 构建界面。
   @override
   Widget build(BuildContext context) {
     return ControllerBuilder<AppThemeController>(
@@ -110,13 +114,16 @@ class MyApp extends StatelessWidget {
   }
 }
 
-/// 当主题为「跟随系统」时，根据系统亮度同步状态栏/导航条样式
 class _SystemOverlaySync extends StatefulWidget {
   const _SystemOverlaySync({required this.controller, required this.child});
 
+  /// 控制器。
   final AppThemeController controller;
+
+  /// 子组件。
   final Widget child;
 
+  /// 创建状态对象。
   @override
   State<_SystemOverlaySync> createState() => _SystemOverlaySyncState();
 }
@@ -124,6 +131,7 @@ class _SystemOverlaySync extends StatefulWidget {
 class _SystemOverlaySyncState extends State<_SystemOverlaySync> {
   Brightness? _lastAppliedBrightness;
 
+  /// 构建界面。
   @override
   Widget build(BuildContext context) {
     if (widget.controller.isSystemMode) {

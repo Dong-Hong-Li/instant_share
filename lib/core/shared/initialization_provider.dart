@@ -1,12 +1,15 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 
+/// 应用初始化状态。
 class InitializationProvider {
   final List<AsyncInitTask> _criticalTasks = [];
+
   final List<AsyncInitTask> _bestEffortTasks = [];
+
   final Map<String, InitResult> _results = {};
 
-  /// 添加任务
+  /// 添加初始化任务。
   ///
   /// `name` 任务名称
   ///
@@ -106,12 +109,24 @@ class InitializationProvider {
   }
 }
 
+/// 异步初始化任务。
 class AsyncInitTask {
+  /// 名称。
   final String name;
+
+  /// 回调函数。
   final Future Function() task;
+
+  /// 是否关键任务。
   final bool critical;
+
+  /// 任务优先级。
   final int priority;
+
+  /// 重试次数。
   final int retryCount;
+
+  /// 超时时间。
   final Duration timeout;
   AsyncInitTask({
     required this.name,
@@ -123,11 +138,19 @@ class AsyncInitTask {
   });
 }
 
+/// 初始化结果。
 class InitResult {
+  /// 数据。
   final dynamic data;
+
+  /// 错误对象。
   final Object? error;
+
+  /// 错误堆栈。
   final StackTrace? stack;
   InitResult.success(this.data) : error = null, stack = null;
   InitResult.failure(this.error, this.stack) : data = null;
+
+  /// 是否成功。
   bool get isSuccess => error == null;
 }

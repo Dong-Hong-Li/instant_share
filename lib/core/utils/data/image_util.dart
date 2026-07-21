@@ -3,17 +3,23 @@ import 'package:flutter/widgets.dart';
 
 /// 图片尺寸信息
 class ImageSize {
+  /// width。
   final double width;
+
+  /// height。
   final double height;
 
   ImageSize(this.width, this.height);
 
+  /// 转为调试文本。
   @override
   String toString() => 'ImageSize(width: $width, height: $height)';
 }
 
+/// 图片工具。
 class ImageUtil {
   late ImageStreamListener _listener;
+
   late ImageStream _imageStream;
 
   /// 获取图片宽高，加载错误会抛出异常.（单位 px）
@@ -174,11 +180,15 @@ class ImageUtil {
   }
 }
 
+/// 获取图片尺寸。
 Future<Size> getImageSize(ImageProvider imageProvider) async {
+  /// completer。
   final Completer<Size> completer = Completer<Size>();
 
+  /// stream。
   final ImageStream stream = imageProvider.resolve(const ImageConfiguration());
 
+  /// listener。
   late ImageStreamListener listener;
   listener = ImageStreamListener(
     (ImageInfo info, bool synchronousCall) {

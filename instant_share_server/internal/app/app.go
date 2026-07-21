@@ -13,6 +13,7 @@ import (
 type App struct {
 	Config config.Config
 	Share  *service.ShareService
+	Room   *service.RoomService
 	WS     *infraws.Client
 	Mux    *http.ServeMux
 }
@@ -20,9 +21,12 @@ type App struct {
 // New 创建应用实例。
 func New(cfg config.Config) *App {
 	share := service.NewShareService(cfg.Host, cfg.Port)
+	room := service.NewRoomService()
 	wsClient := infraws.NewClient(cfg.WebSocket)
-	wsAdmin := handler.NewWSAdminHandler(share, wsClient)
+	wsRoom := handler.NewWSRoomHandler(room, wsClient)
+	wsAdmin := handler.NewWSAdminHandler(share, wsClient, wsRoom)
 	wsAdmin.Register(wsClient)
+	wsRoom.Register(wsClient)
 
 	mux := http.NewServeMux()
 
@@ -40,6 +44,7 @@ func New(cfg config.Config) *App {
 	return &App{
 		Config: cfg,
 		Share:  share,
+		Room:   room,
 		WS:     wsClient,
 		Mux:    mux,
 	}

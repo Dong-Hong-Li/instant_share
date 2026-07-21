@@ -11,6 +11,7 @@ class ShareServerDiscovery {
 
   static const _healthPath = '/api/v1/server/health';
 
+  /// serverBase链接。
   final Uri serverBaseUri;
 
   /// 拉取服务健康信息；失败立即抛出。

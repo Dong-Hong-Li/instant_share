@@ -14,10 +14,16 @@ class HomeShareLinkActions extends StatelessWidget {
     required this.onCopyTap,
   });
 
+  /// 颜色配置。
   final ColorValue colorValue;
+
+  /// onQrTap。
   final VoidCallback onQrTap;
+
+  /// onCopyTap。
   final VoidCallback onCopyTap;
 
+  /// 构建界面。
   @override
   Widget build(BuildContext context) {
     return Row(
@@ -52,11 +58,19 @@ class _ActionButton extends StatelessWidget {
     required this.onTap,
   });
 
+  /// 颜色配置。
   final ColorValue colorValue;
+
+  /// icon。
   final IconData icon;
+
+  /// label。
   final String label;
+
+  /// 点击回调。
   final VoidCallback onTap;
 
+  /// 构建界面。
   @override
   Widget build(BuildContext context) {
     return Material(

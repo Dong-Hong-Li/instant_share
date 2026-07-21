@@ -19,6 +19,7 @@ type PublicHandler struct {
 	files *service.ShareService
 }
 
+// NewPublicHandler 创建公开访问处理器。
 func NewPublicHandler(share *service.ShareService) *PublicHandler {
 	return &PublicHandler{
 		share: webassets.FS(),
@@ -26,6 +27,7 @@ func NewPublicHandler(share *service.ShareService) *PublicHandler {
 	}
 }
 
+// Register 注册路由。
 func (h *PublicHandler) Register(mux *http.ServeMux) {
 	mux.HandleFunc("/", h.handleRoot)
 	mux.HandleFunc("/share", h.handleShareEntry)
@@ -35,6 +37,7 @@ func (h *PublicHandler) Register(mux *http.ServeMux) {
 	mux.HandleFunc("/api/v1/share/files/", h.handleShareFileDownload)
 }
 
+// handleRoot 处理首页。
 func (h *PublicHandler) handleRoot(w http.ResponseWriter, r *http.Request) {
 	if r.URL.Path != "/" {
 		http.NotFound(w, r)
@@ -43,6 +46,7 @@ func (h *PublicHandler) handleRoot(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/share/", http.StatusFound)
 }
 
+// handleShareEntry 处理分享入口。
 func (h *PublicHandler) handleShareEntry(w http.ResponseWriter, r *http.Request) {
 	if r.URL.Path != "/share" {
 		http.NotFound(w, r)
@@ -51,6 +55,7 @@ func (h *PublicHandler) handleShareEntry(w http.ResponseWriter, r *http.Request)
 	http.Redirect(w, r, "/share/", http.StatusFound)
 }
 
+// handleShareStatic 处理静态资源。
 func (h *PublicHandler) handleShareStatic() http.Handler {
 	fileServer := http.StripPrefix("/share/", webassets.FileServer())
 
@@ -71,6 +76,7 @@ func (h *PublicHandler) handleShareStatic() http.Handler {
 	})
 }
 
+// handleShareStatus 处理分享状态。
 func (h *PublicHandler) handleShareStatus(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		methodNotAllowed(w)
@@ -84,6 +90,7 @@ func (h *PublicHandler) handleShareStatus(w http.ResponseWriter, r *http.Request
 	})
 }
 
+// handleShareFileDownload 处理文件下载。
 func (h *PublicHandler) handleShareFileDownload(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		methodNotAllowed(w)
@@ -132,6 +139,7 @@ func (h *PublicHandler) handleShareFileDownload(w http.ResponseWriter, r *http.R
 	http.ServeContent(w, r, file.Name, info.ModTime(), f)
 }
 
+// contentDispositionAttachment 生成下载响应头。
 func contentDispositionAttachment(filename string) string {
 	ascii := strings.Map(func(r rune) rune {
 		if r > 127 || r == '"' || r == '\\' {

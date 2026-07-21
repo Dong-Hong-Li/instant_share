@@ -4,7 +4,10 @@ import 'dart:io';
 class PortUtil {
   PortUtil._();
 
+  /// kMinCustom分享Port。
   static const int kMinCustomSharePort = 11285;
+
+  /// kMaxCustom分享Port。
   static const int kMaxCustomSharePort = 65535;
 
   /// 是否为合法自定义端口（闭区间）。
@@ -15,10 +18,7 @@ class PortUtil {
   ///
   /// [ownedByCurrentServer] 为本进程分享服务已监听端口时，视为可用（避免自占用误判）。
   /// 覆盖 Android / macOS / Windows / Linux（依赖 `dart:io`）。
-  static Future<bool> isPortFree(
-    int port, {
-    int? ownedByCurrentServer,
-  }) async {
+  static Future<bool> isPortFree(int port, {int? ownedByCurrentServer}) async {
     if (ownedByCurrentServer != null && ownedByCurrentServer == port) {
       return true;
     }

@@ -13,11 +13,19 @@ class HomeServerUrlHint extends StatelessWidget {
     this.sharing = false,
   });
 
+  /// share地址。
   final String? shareUrl;
+
+  /// alternate分享Urls。
   final List<String> alternateShareUrls;
+
+  /// 回调函数。
   final Future<void> Function(String url) onCopyUrl;
+
+  /// sharing。
   final bool sharing;
 
+  /// 构建界面。
   @override
   Widget build(BuildContext context) {
     final primary = _trimUrl(shareUrl);

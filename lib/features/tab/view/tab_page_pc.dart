@@ -5,6 +5,7 @@ class _TabPagePcState extends BaseStatePage<TabPage>
   bool _windowListenerAttached = false;
   String? _lastShownError;
 
+  /// 释放资源。
   @override
   void dispose() {
     if (_windowListenerAttached) {
@@ -13,6 +14,7 @@ class _TabPagePcState extends BaseStatePage<TabPage>
     super.dispose();
   }
 
+  /// onWindowClose。
   @override
   Future<void> onWindowClose() async {
     try {
@@ -28,19 +30,29 @@ class _TabPagePcState extends BaseStatePage<TabPage>
     windowManager.addListener(this);
   }
 
+  /// background颜色。
   @override
   Color? get backgroundColor => Colors.transparent;
 
+  /// appBar。
   @override
   PreferredSizeWidget? appBar() => null;
 
+  /// resizeToAvoidBottomInset。
   @override
   bool get resizeToAvoidBottomInset => false;
 
+  /// build页面。
   @override
   Widget buildPage(BuildContext context, WidgetRef ref) {
     _ensureWindowListener();
     final home = ref.watch(homeProvider);
+    final mutual = ref.watch(mutualShareProvider);
+    home.setRoomFileOfferSync(mutual.offerFiles);
+    mutual.setOnJoinedRoom(home.publishSelectedFilesToRoom);
+    if (home.isSharing) {
+      unawaited(mutual.ensureHostAdminListening());
+    }
     _maybeShowError(context, home);
     syncTab(home);
     maybeHandlePortOccupied(context, home);

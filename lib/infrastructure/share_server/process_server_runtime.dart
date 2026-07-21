@@ -14,6 +14,7 @@ import 'package:instant_share/infrastructure/share_server/share_server_runtime.d
 class ProcessServerRuntime implements ShareServerRuntime {
   ProcessServerRuntime._();
 
+  /// 单例实例。
   static final ProcessServerRuntime instance = ProcessServerRuntime._();
 
   static final RegExp _portMarker = RegExp(r'INSTANT_SHARE_READY port=(\d+)');
@@ -23,12 +24,17 @@ class ProcessServerRuntime implements ShareServerRuntime {
   int? _port;
   Future<void>? _startFuture;
 
+  /// isStarted。
   @override
+  /// 是否已启动。
   bool get isStarted => _started;
 
+  /// 端口。
   @override
+  /// 端口。
   int? get port => _port;
 
+  /// ensureStarted。
   @override
   Future<void> ensureStarted() {
     if (_started) return Future.value();
@@ -62,12 +68,7 @@ class ProcessServerRuntime implements ShareServerRuntime {
     debugPrint('[ShareServer] 启动子进程: ${binary.path}');
     final process = await Process.start(
       binary.path,
-      [
-        '-port',
-        '${resolveShareServerListenPort()}',
-        '-parent-pid',
-        '$pid',
-      ],
+      ['-port', '${resolveShareServerListenPort()}', '-parent-pid', '$pid'],
       environment: {
         ...Platform.environment,
         'INSTANT_SHARE_PARENT_PID': '$pid',
@@ -126,11 +127,10 @@ class ProcessServerRuntime implements ShareServerRuntime {
       }
     }
     await _stopManagedProcess();
-    throw ShareServerException(
-      message: 'Go 子进程已启动但健康检查失败（port=$port）',
-    );
+    throw ShareServerException(message: 'Go 子进程已启动但健康检查失败（port=$port）');
   }
 
+  /// stop。
   @override
   Future<void> stop() async {
     await _stopManagedProcess();
@@ -139,6 +139,7 @@ class ProcessServerRuntime implements ShareServerRuntime {
     debugPrint('[ShareServer] 子进程服务已停止');
   }
 
+  /// restartListening。
   @override
   Future<void> restartListening() async {
     await stop();

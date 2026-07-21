@@ -34,18 +34,27 @@ class HomeActionButton extends StatelessWidget {
     required this.onTap,
   });
 
+  /// 颜色配置。
   final ColorValue colorValue;
+
+  /// 状态。
   final HomeActionState state;
+
+  /// 是否启用。
   final bool enabled;
+
+  /// 点击回调。
   final VoidCallback onTap;
 
   static const Duration _duration = Duration(milliseconds: 320);
+
   static const Curve _curve = Curves.easeOutCubic;
 
   bool get _isShareMode =>
       state == HomeActionState.shareOff || state == HomeActionState.shareOn;
   bool get _isSharing => state == HomeActionState.shareOn;
 
+  /// 构建界面。
   @override
   Widget build(BuildContext context) {
     final size = _isShareMode ? w188 : w150;
@@ -123,13 +132,16 @@ class HomeActionButton extends StatelessWidget {
   }
 }
 
-/// 鼠标悬停放大。
 class _HoverScale extends StatefulWidget {
   const _HoverScale({required this.enabled, required this.child});
 
+  /// 是否启用。
   final bool enabled;
+
+  /// 子组件。
   final Widget child;
 
+  /// 创建状态对象。
   @override
   State<_HoverScale> createState() => _HoverScaleState();
 }
@@ -137,6 +149,7 @@ class _HoverScale extends StatefulWidget {
 class _HoverScaleState extends State<_HoverScale> {
   bool _hovered = false;
 
+  /// 构建界面。
   @override
   Widget build(BuildContext context) {
     return MouseRegion(

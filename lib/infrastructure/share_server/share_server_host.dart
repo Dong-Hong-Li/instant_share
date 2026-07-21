@@ -11,6 +11,7 @@ import 'package:instant_share/infrastructure/share_server/share_server_runtime.d
 class ShareServerHost {
   ShareServerHost._();
 
+  /// 单例实例。
   static ShareServerRuntime get instance {
     if (Platform.isWindows) {
       return ProcessServerRuntime.instance;

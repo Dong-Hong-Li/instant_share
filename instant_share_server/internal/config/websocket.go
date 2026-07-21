@@ -24,14 +24,17 @@ func DefaultWebSocketConfig() WebSocketConfig {
 	}
 }
 
+// AuthTimeout 鉴权超时时间。
 func (c WebSocketConfig) AuthTimeout() time.Duration {
 	return time.Duration(c.AuthTimeoutSec) * time.Second
 }
 
+// PongWait Pong 等待时间。
 func (c WebSocketConfig) PongWait() time.Duration {
 	return time.Duration(c.PongWaitSec) * time.Second
 }
 
+// WriteWait 写入超时时间。
 func (c WebSocketConfig) WriteWait() time.Duration {
 	return time.Duration(c.WriteWaitSec) * time.Second
 }

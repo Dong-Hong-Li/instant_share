@@ -10,11 +10,15 @@ class TabPlaceholder extends StatelessWidget {
     required this.colorValue,
   });
 
+  /// 标题。
   final String title;
+
+  /// 颜色配置。
   final ColorValue colorValue;
 
   static const double _contentPadding = 24;
 
+  /// 构建界面。
   @override
   Widget build(BuildContext context) {
     final c = colorValue;

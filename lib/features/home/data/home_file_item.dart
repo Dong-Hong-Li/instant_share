@@ -7,8 +7,15 @@ class HomeFileItem {
     required this.size,
   });
 
+  /// ID。
   final String id;
+
+  /// 路径。
   final String path;
+
+  /// 名称。
   final String name;
+
+  /// 大小。
   final int size;
 }

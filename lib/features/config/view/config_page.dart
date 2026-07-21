@@ -13,6 +13,7 @@ part 'config_page_app.dart';
 class ConfigPage extends StatefulWidget {
   const ConfigPage({super.key, required this.colorValue});
 
+  /// 颜色配置。
   final ColorValue colorValue;
 
   @override
@@ -26,8 +27,10 @@ class ConfigPage extends StatefulWidget {
 class _ConfigPageContent extends StatelessWidget {
   const _ConfigPageContent({required this.colorValue});
 
+  /// 颜色配置。
   final ColorValue colorValue;
 
+  /// 构建界面。
   @override
   Widget build(BuildContext context) {
     return Center(

@@ -16,7 +16,10 @@ class SettingPage extends StatefulWidget {
     required this.isSharing,
   });
 
+  /// 颜色配置。
   final ColorValue colorValue;
+
+  /// 是否正在分享。
   final bool isSharing;
 
   @override
@@ -33,18 +36,19 @@ class _SettingPageContent extends StatelessWidget {
     required this.isSharing,
   });
 
+  /// 颜色配置。
   final ColorValue colorValue;
+
+  /// 是否正在分享。
   final bool isSharing;
 
+  /// 构建界面。
   @override
   Widget build(BuildContext context) {
     return SafeArea(
       child: SingleChildScrollView(
         padding: EdgeInsets.only(top: h24, bottom: h24),
-        child: SettingPortSection(
-          colorValue: colorValue,
-          isSharing: isSharing,
-        ),
+        child: SettingPortSection(colorValue: colorValue, isSharing: isSharing),
       ),
     );
   }

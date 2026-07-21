@@ -23,11 +23,15 @@ import 'package:instant_share/infrastructure/websocket/ws_share_models.dart';
 import 'package:state_scope/state_scope.dart';
 import 'package:uuid/uuid.dart';
 
+/// 房间文件OfferSync类型定义。
+typedef RoomFileOfferSync = Future<void> Function(List<HomeFileItem> files);
+
+/// 首页状态。
 class HomeProvider extends ChangeNotifier {
   HomeProvider(this._session, {ShareUrlResolver? shareUrlResolver})
-    : _shareUrlResolver = shareUrlResolver ?? ShareUrlResolver(
-        lanIpResolver: createLanIpResolver(),
-      ) {
+    : _shareUrlResolver =
+          shareUrlResolver ??
+          ShareUrlResolver(lanIpResolver: createLanIpResolver()) {
     final port = ShareServerHost.instance.port;
     if (port != null) {
       _serverPort = port;
@@ -37,7 +41,9 @@ class HomeProvider extends ChangeNotifier {
   static const _uuid = Uuid();
 
   final ShareSessionService _session;
+
   final ShareUrlResolver _shareUrlResolver;
+
   final List<HomeFileItem> _selectedFiles = [];
   HomeShareMode _shareMode = HomeShareMode.file;
 
@@ -50,66 +56,93 @@ class HomeProvider extends ChangeNotifier {
   String? _serverShareUrl;
   List<String> _alternateShareUrls = const [];
   List<HomeArticleItem> _articles = [];
+
   final Set<String> _selectedArticleIds = {};
+  RoomFileOfferSync? _roomFileOfferSync;
   String? _errorMessage;
   bool _portOccupiedNeedsSettings = false;
 
+  /// 已选文件列表。
   List<HomeFileItem> get selectedFiles => List.unmodifiable(_selectedFiles);
 
+  /// 当前分享模式。
   HomeShareMode get shareMode => _shareMode;
 
+  /// 是否已有文件。
   bool get hasFiles => _selectedFiles.isNotEmpty;
 
+  /// 文件数量。
   int get fileCount => _selectedFiles.length;
 
+  /// total文件Size。
   int get totalFileSize =>
       _selectedFiles.fold<int>(0, (sum, file) => sum + file.size);
 
+  /// 是否正在选择文件。
   bool get isPicking => _isPicking;
 
   bool get isShareBusy => _isShareBusy;
 
+  /// 是否正在分享。
   bool get isSharing => _isSharing;
 
+  /// 文章列表。
   List<HomeArticleItem> get articles => List.unmodifiable(_articles);
 
+  /// selected文章Ids。
   Set<String> get selectedArticleIds => Set.unmodifiable(_selectedArticleIds);
 
-  /// 文章是否已被用户选中（本地标记，与服务是否开启无关）。
   bool isArticleSelected(String id) => _selectedArticleIds.contains(id);
 
   /// 文章是否处于「已分享」展示态（仅服务开启且已选中时为 true）。
   bool isArticleShared(String id) =>
       _isSharing && _selectedArticleIds.contains(id);
 
+  /// 已选文章列表。
   List<HomeArticleItem> get selectedArticles => _articles
       .where((article) => _selectedArticleIds.contains(article.id))
       .toList(growable: false);
 
   String? get shareUrl => _shareUrl;
 
+  /// 服务端口。
   int? get serverPort => _serverPort;
 
   String? get serverShareUrl => _serverShareUrl;
 
   List<String> get alternateShareUrls => _alternateShareUrls;
 
-  /// 最近一次分享/地址解析失败的用户可读提示（展示后应 [clearErrorMessage]）。
+  /// 错误消息。
   String? get errorMessage => _errorMessage;
 
-  /// 自定义端口占用，需引导用户去设置页。
   bool get portOccupiedNeedsSettings => _portOccupiedNeedsSettings;
 
+  /// 清除错误消息。
   void clearErrorMessage() {
     if (_errorMessage == null) return;
     _errorMessage = null;
     notifyListeners();
   }
 
+  /// clearPortOccupiedFlag。
   void clearPortOccupiedFlag() {
     if (!_portOccupiedNeedsSettings) return;
     _portOccupiedNeedsSettings = false;
     notifyListeners();
+  }
+
+  /// set房间文件OfferSync。
+  void setRoomFileOfferSync(RoomFileOfferSync? sync) {
+    _roomFileOfferSync = sync;
+  }
+
+  /// Peer 入房后调用：若已有选中文件则确保本机分享开启并 offer 到房间。
+  Future<void> publishSelectedFilesToRoom() async {
+    if (_selectedFiles.isNotEmpty && !_isSharing) {
+      await _startSharing();
+      return;
+    }
+    await _offerRoomFilesIfNeeded();
   }
 
   void _setErrorMessage(String? message) {
@@ -117,6 +150,7 @@ class HomeProvider extends ChangeNotifier {
     _errorMessage = message;
   }
 
+  /// has服务Info。
   bool get hasServerInfo =>
       _serverPort != null ||
       (_serverShareUrl != null && _serverShareUrl!.isNotEmpty);
@@ -143,6 +177,7 @@ class HomeProvider extends ChangeNotifier {
     return true;
   }
 
+  /// set分享Mode。
   void setShareMode(HomeShareMode mode) {
     if (_shareMode == mode) return;
     _shareMode = mode;
@@ -169,6 +204,7 @@ class HomeProvider extends ChangeNotifier {
     return article;
   }
 
+  /// remove文章。
   Future<void> removeArticle(String id) async {
     final index = _articles.indexWhere((item) => item.id == id);
     if (index == -1) return;
@@ -183,6 +219,7 @@ class HomeProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// copy文章Content。
   Future<bool> copyArticleContent(String id) async {
     HomeArticleItem? target;
     for (final article in _articles) {
@@ -317,6 +354,7 @@ class HomeProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// 选择本地文件。
   Future<void> pickFiles() async {
     if (_isPicking) return;
 
@@ -357,6 +395,7 @@ class HomeProvider extends ChangeNotifier {
       if (changed) {
         if (_isSharing) {
           await _syncSharingFiles();
+          await _offerRoomFilesIfNeeded();
         }
         notifyListeners();
       }
@@ -368,6 +407,7 @@ class HomeProvider extends ChangeNotifier {
     }
   }
 
+  /// remove文件。
   Future<void> removeFile(String id) async {
     final index = _selectedFiles.indexWhere((file) => file.id == id);
     if (index == -1) return;
@@ -375,27 +415,32 @@ class HomeProvider extends ChangeNotifier {
 
     if (_selectedFiles.isEmpty && _isSharing) {
       await _syncSharingFiles();
+      await _offerRoomFilesIfNeeded();
       notifyListeners();
     } else {
       if (_isSharing) {
         await _syncSharingFiles();
+        await _offerRoomFilesIfNeeded();
       }
       notifyListeners();
     }
   }
 
+  /// 清空文件列表。
   Future<void> clearFiles() async {
     if (_selectedFiles.isEmpty) return;
     _selectedFiles.clear();
 
     if (_isSharing) {
       await _syncSharingFiles();
+      await _offerRoomFilesIfNeeded();
       notifyListeners();
     } else {
       notifyListeners();
     }
   }
 
+  /// 释放资源。
   @override
   void dispose() {
     unawaited(_shutdown());
@@ -421,6 +466,7 @@ class HomeProvider extends ChangeNotifier {
         _shareUrl = await _resolveShareUrlAsync(status);
         _isSharing = true;
         _setErrorMessage(null);
+        await _offerRoomFilesIfNeeded();
         if (_selectedArticleIds.isNotEmpty) {
           await _syncSharedArticlesToServer();
         }
@@ -441,7 +487,6 @@ class HomeProvider extends ChangeNotifier {
     }
   }
 
-  /// 自定义端口守卫；返回 true 表示已拦截、不应继续 startShare。
   Future<bool> _guardCustomPortBeforeStart() async {
     final portCtrl = DI.find<SharePortController>();
     if (!portCtrl.useCustomPort) return false;
@@ -517,6 +562,16 @@ class HomeProvider extends ChangeNotifier {
     }
   }
 
+  Future<void> _offerRoomFilesIfNeeded() async {
+    final sync = _roomFileOfferSync;
+    if (sync == null) return;
+    try {
+      await sync(List<HomeFileItem>.unmodifiable(_selectedFiles));
+    } catch (error, stackTrace) {
+      debugPrint('[HomeProvider] room offer failed: $error\n$stackTrace');
+    }
+  }
+
   Future<void> _syncSharedArticlesToServer() async {
     if (!_isSharing) return;
 
@@ -546,9 +601,12 @@ class HomeProvider extends ChangeNotifier {
   }
 }
 
+/// home状态。
 final homeProvider = ChangeNotifierProvider<HomeProvider>((ref) {
   // 服务未启动时 port 为 null；用占位 URI，避免 provider 创建即崩溃。
   final port = ShareServerHost.instance.port;
+
+  /// 状态提供者。
   final provider = HomeProvider(
     ShareSessionService(
       serverBaseUri: ShareServerConfig.baseUriForPort(port ?? 0),

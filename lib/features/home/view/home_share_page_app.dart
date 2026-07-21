@@ -1,14 +1,21 @@
 part of 'home_share_page.dart';
 
-/// App 端首页：竖屏 App 布局，与 PC 侧栏窗口布局分离。
 class _HomeSharePageAppState extends State<HomeSharePage> {
+  /// 状态提供者。
   HomeProvider get provider => widget.provider;
+
+  /// mutual。
+  MutualShareProvider get mutual => widget.mutual;
+
+  /// 颜色配置。
   ColorValue get colorValue => widget.colorValue;
 
+  /// 构建界面。
   @override
   Widget build(BuildContext context) {
     final topInset = widget.topInset;
     final isFileMode = provider.shareMode == HomeShareMode.file;
+    final joinedRoom = mutual.joinedRoom;
 
     return Stack(
       children: [
@@ -37,45 +44,92 @@ class _HomeSharePageAppState extends State<HomeSharePage> {
             ),
             SizedBox(height: h12),
             Center(
-              child: HomeShareModeTabs(
-                colorValue: colorValue,
-                sharing: provider.isSharing,
-                mode: provider.shareMode,
-                onModeChanged: provider.setShareMode,
-              ),
+              child: joinedRoom
+                  ? _SharedFilesHeader(colorValue: colorValue)
+                  : HomeShareModeTabs(
+                      colorValue: colorValue,
+                      sharing: provider.isSharing,
+                      mode: provider.shareMode,
+                      onModeChanged: provider.setShareMode,
+                    ),
             ),
             SizedBox(height: h12),
             Expanded(
-              child: CrossFadeSwitcher(
-                currentIndex: isFileMode ? 0 : 1,
-                children: [
-                  _AppFileModeBody(colorValue: colorValue, provider: provider),
-                  _AppArticleShareBody(
-                    colorValue: colorValue,
-                    provider: provider,
-                  ),
-                ],
-              ),
+              child: joinedRoom
+                  ? _JoinedRoomBody(
+                      colorValue: colorValue,
+                      provider: provider,
+                      mutual: mutual,
+                    )
+                  : Column(
+                      children: [
+                        Expanded(
+                          child: CrossFadeSwitcher(
+                            currentIndex: isFileMode ? 0 : 1,
+                            children: [
+                              _AppFileModeBody(
+                                colorValue: colorValue,
+                                provider: provider,
+                              ),
+                              _AppArticleShareBody(
+                                colorValue: colorValue,
+                                provider: provider,
+                              ),
+                            ],
+                          ),
+                        ),
+                        if (mutual.shouldShowHostRoomCatalog) ...[
+                          Padding(
+                            padding: EdgeInsets.fromLTRB(w16, 0, w16, h8),
+                            child: Align(
+                              alignment: Alignment.centerLeft,
+                              child: Text(
+                                '房间共享文件',
+                                style: TextStyle(
+                                  fontSize: f14,
+                                  fontWeight: FontWeight.w600,
+                                  color: colorValue.homeTitleColor,
+                                ),
+                              ),
+                            ),
+                          ),
+                          SizedBox(
+                            height: h160,
+                            child: RoomCatalogList(
+                              colorValue: colorValue,
+                              entries: mutual.catalog,
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
             ),
           ],
         ),
-        if (provider.hasServerInfo)
-          Positioned(
-            top: topInset + h8,
-            right: w16,
-            child: HomeServerUrlHint(
-              shareUrl: provider.serverShareUrl,
-              alternateShareUrls: provider.alternateShareUrls,
-              sharing: provider.isSharing,
-              onCopyUrl: (url) => _copyServerUrl(context, url),
-            ),
-          )
-        else if (!isFileMode)
-          Positioned(
-            top: topInset + h8,
-            right: w16,
-            child: HomeArticleHelpHint(colorValue: colorValue),
+        Positioned(
+          top: topInset + h8,
+          right: w16,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (provider.hasServerInfo)
+                HomeServerUrlHint(
+                  shareUrl: provider.serverShareUrl,
+                  alternateShareUrls: provider.alternateShareUrls,
+                  sharing: provider.isSharing,
+                  onCopyUrl: (url) => _copyServerUrl(context, url),
+                )
+              else if (!isFileMode && !joinedRoom)
+                HomeArticleHelpHint(colorValue: colorValue),
+              SizedBox(width: w4),
+              ConnectPeerButton(
+                sharing: provider.isSharing || joinedRoom,
+                onPressed: () => _connectPeer(context),
+              ),
+            ],
           ),
+        ),
+        PairingWaitingOverlay(colorValue: colorValue, provider: mutual),
       ],
     );
   }
@@ -85,13 +139,27 @@ class _HomeSharePageAppState extends State<HomeSharePage> {
     if (!context.mounted) return;
     showHomeShareSnackBar(context, copied ? '分享地址已复制' : '暂无分享地址');
   }
+
+  Future<void> _connectPeer(BuildContext context) async {
+    final input = await showConnectPeerDialog(context, colorValue: colorValue);
+    if (input == null || input.isEmpty) return;
+    await mutual.startPairing(hostInput: input);
+    if (!context.mounted) return;
+    final error = mutual.errorMessage;
+    if (error != null) {
+      showHomeShareSnackBar(context, error);
+      mutual.clearErrorMessage();
+    }
+  }
 }
 
 class _AppLogo extends StatelessWidget {
   const _AppLogo({required this.colorValue});
 
+  /// 颜色配置。
   final ColorValue colorValue;
 
+  /// 构建界面。
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -106,13 +174,16 @@ class _AppLogo extends StatelessWidget {
   }
 }
 
-/// App 文件分享区：单列滚动，适配竖屏触控。
 class _AppFileModeBody extends StatelessWidget {
   const _AppFileModeBody({required this.colorValue, required this.provider});
 
+  /// 颜色配置。
   final ColorValue colorValue;
+
+  /// 状态提供者。
   final HomeProvider provider;
 
+  /// 构建界面。
   @override
   Widget build(BuildContext context) {
     final hasFiles = provider.hasFiles;
@@ -206,29 +277,39 @@ class _AppFileModeBody extends StatelessWidget {
   }
 }
 
-/// App 文章分享区：双列卡片 + 底部输入。
 class _AppArticleShareBody extends StatefulWidget {
   const _AppArticleShareBody({
     required this.colorValue,
     required this.provider,
   });
 
+  /// 颜色配置。
   final ColorValue colorValue;
+
+  /// 状态提供者。
   final HomeProvider provider;
 
+  /// 创建状态对象。
   @override
   State<_AppArticleShareBody> createState() => _AppArticleShareBodyState();
 }
 
 class _AppArticleShareBodyState extends State<_AppArticleShareBody> {
   late final TextEditingController _titleController;
+
   late final TextEditingController _contentController;
+
   late final FocusNode _contentFocusNode;
+
   late final ScrollController _contentScrollController;
 
+  /// 状态提供者。
   HomeProvider get provider => widget.provider;
+
+  /// 颜色配置。
   ColorValue get colorValue => widget.colorValue;
 
+  /// 初始化状态。
   @override
   void initState() {
     super.initState();
@@ -238,6 +319,7 @@ class _AppArticleShareBodyState extends State<_AppArticleShareBody> {
     _contentScrollController = ScrollController();
   }
 
+  /// 释放资源。
   @override
   void dispose() {
     _titleController.dispose();
@@ -247,6 +329,7 @@ class _AppArticleShareBodyState extends State<_AppArticleShareBody> {
     super.dispose();
   }
 
+  /// 构建界面。
   @override
   Widget build(BuildContext context) {
     final articles = provider.articles;

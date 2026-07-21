@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:instant_share/l10n/strings/app_strings.dart';
 
+/// 应用Strings语言Label。
 extension AppStringsLocaleLabel on AppStrings {
   /// 将 [Locale] 映射为当前界面语言下的展示名称。
   String localeLabel(Locale locale) {

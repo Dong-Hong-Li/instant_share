@@ -9,11 +9,19 @@ class WsException implements Exception {
     this.requestId,
   });
 
+  /// 消息。
   final String message;
+
+  /// 状态码。
   final int code;
+
+  /// frameType。
   final String? frameType;
+
+  /// 请求 ID。
   final String? requestId;
 
+  /// 转为调试文本。
   @override
   String toString() {
     final type = frameType == null ? '' : ', type=$frameType';
