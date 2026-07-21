@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/legacy.dart';
+import 'package:instant_share/core/utils/storage/prefs_util.dart';
 import 'package:instant_share/features/home/data/home_file_item.dart';
 import 'package:instant_share/features/home/provider/provider.dart';
 import 'package:instant_share/infrastructure/share_server/share_server_health.dart';
@@ -10,6 +11,7 @@ import 'package:instant_share/infrastructure/share_server/share_session_service.
 import 'package:instant_share/infrastructure/websocket/remote_room_client.dart';
 import 'package:instant_share/infrastructure/websocket/room_ws_models.dart';
 import 'package:instant_share/infrastructure/websocket/ws_frame.dart';
+import 'package:instant_share/resource/keys.dart';
 import 'package:uuid/uuid.dart';
 
 /// 互传分享阶段。
@@ -25,7 +27,21 @@ class MutualShareProvider extends ChangeNotifier {
 
   static const _uuid = Uuid();
 
-  static final String _deviceId = _uuid.v4();
+  static String? _cachedDeviceId;
+
+  /// 跨进程稳定的 Peer 设备 ID（杀进程重启后仍相同，避免 Host 列表重复）。
+  static String get _deviceId {
+    final cached = _cachedDeviceId;
+    if (cached != null) return cached;
+    final stored = PrefsUtil.getString(AppKeys.peerDeviceId)?.trim();
+    if (stored != null && stored.isNotEmpty) {
+      return _cachedDeviceId = stored;
+    }
+    final created = _uuid.v4();
+    _cachedDeviceId = created;
+    unawaited(PrefsUtil.setString(AppKeys.peerDeviceId, created));
+    return created;
+  }
 
   /// 重连前等待：1s / 2s / 4s，共 3 次。
   static const _reconnectBackoffs = <Duration>[
@@ -155,7 +171,17 @@ class MutualShareProvider extends ChangeNotifier {
         displayName: Platform.localHostname,
         peerBaseUrl: localHealth.lanHttpBaseUri,
       );
-      await remote.requestPairing();
+      final rejoined = await remote.requestPairing();
+      // 宽限期内同设备重连：服务端直接入房，不再进入等待审批。
+      // pairing.approve 可能先于 ack 到达，已是 joinedRoom 时不要覆盖回 pairingPending。
+      if (rejoined || _phase == MutualSharePhase.joinedRoom) {
+        if (_phase != MutualSharePhase.joinedRoom) {
+          await _enterJoinedRoomFromRejoin(remote);
+        } else {
+          notifyListeners();
+        }
+        return;
+      }
       _phase = MutualSharePhase.pairingPending;
       _countdownSeconds = 60;
       _startCountdown();
@@ -165,6 +191,28 @@ class MutualShareProvider extends ChangeNotifier {
       _errorMessage = '连接失败：$error';
       await remote.disconnect();
       notifyListeners();
+    }
+  }
+
+  /// 断线宽限期内自动重入房间后的本地状态同步。
+  Future<void> _enterJoinedRoomFromRejoin(RemoteRoomClient remote) async {
+    _phase = MutualSharePhase.joinedRoom;
+    remote.startHeartbeat();
+    final epoch = _mirrorEpoch;
+    final snapshot = await remote.fetchSnapshot();
+    if (epoch != _mirrorEpoch || _phase != MutualSharePhase.joinedRoom) {
+      return;
+    }
+    _catalog = snapshot.catalog;
+    _members = snapshot.members;
+    notifyListeners();
+    unawaited(_mirrorPublicCatalog());
+    final hook = _onJoinedRoom;
+    if (hook == null) return;
+    try {
+      await hook();
+    } catch (error) {
+      debugPrint('[MutualShareProvider] onJoinedRoom after rejoin failed: $error');
     }
   }
 

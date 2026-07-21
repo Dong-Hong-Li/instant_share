@@ -126,23 +126,37 @@ func (s *Service) EnsureRoom(hostDeviceID, hostBaseURL, sessionID string) {
 
 /**
  * @description: RequestPairing Peer 提交配对；同 deviceID 重复提交会刷新展示名/URL/过期时间，保留首次 RequestedAt。
- * @return {room.PendingRequest, error} 房间未开启返回 ErrRoomNotActive
+ * 若该 deviceID 已是成员（断线宽限期内重连），则只刷新成员信息并返回 rejoined=true，不再进入 pending。
+ * @return pending, rejoined, error
  */
-func (s *Service) RequestPairing(deviceID, displayName, peerBaseURL string) (room.PendingRequest, error) {
+func (s *Service) RequestPairing(deviceID, displayName, peerBaseURL string) (room.PendingRequest, bool, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	if !s.active {
-		return room.PendingRequest{}, room.ErrRoomNotActive
+		return room.PendingRequest{}, false, room.ErrRoomNotActive
 	}
 	deviceID = strings.TrimSpace(deviceID)
 	displayName = strings.TrimSpace(displayName)
 	peerBaseURL = strings.TrimRight(strings.TrimSpace(peerBaseURL), "/")
 	if deviceID == "" || peerBaseURL == "" {
-		return room.PendingRequest{}, room.ErrInvalidRoomArgument
+		return room.PendingRequest{}, false, room.ErrInvalidRoomArgument
 	}
 	if displayName == "" {
 		displayName = deviceID
+	}
+
+	// 已是成员：杀进程/闪断后同 ID 再次申请，覆盖旧条目，避免 Host 列表出现两个同名设备。
+	if member, ok := s.members[deviceID]; ok {
+		member.DisplayName = displayName
+		member.PeerBaseURL = peerBaseURL
+		s.members[deviceID] = member
+		delete(s.pending, deviceID)
+		return room.PendingRequest{
+			DeviceID:    deviceID,
+			DisplayName: displayName,
+			PeerBaseURL: peerBaseURL,
+		}, true, nil
 	}
 
 	now := s.now()
@@ -157,7 +171,7 @@ func (s *Service) RequestPairing(deviceID, displayName, peerBaseURL string) (roo
 		req.RequestedAt = existing.RequestedAt
 	}
 	s.pending[deviceID] = req
-	return req, nil
+	return req, false, nil
 }
 
 /**

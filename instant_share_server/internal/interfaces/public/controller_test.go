@@ -21,7 +21,7 @@ func TestHandleShareStatusHostWithMemberIgnoresMirror(t *testing.T) {
 	shareSvc := sharesvc.NewService(shareStore, "127.0.0.1", 8080)
 	roomSvc := roomsvc.NewService()
 	roomSvc.EnsureRoom("host", "http://192.168.1.10:8080", "session-1")
-	if _, err := roomSvc.RequestPairing("peer-a", "Peer A", "http://192.168.1.20:8080"); err != nil {
+	if _, _, err := roomSvc.RequestPairing("peer-a", "Peer A", "http://192.168.1.20:8080"); err != nil {
 		t.Fatalf("RequestPairing failed: %v", err)
 	}
 	if _, err := roomSvc.Approve("peer-a"); err != nil {

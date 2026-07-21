@@ -77,7 +77,9 @@ class RemoteRoomClient {
   void stopHeartbeat() => _client.stopHeartbeat();
 
   /// request配对。
-  Future<void> requestPairing() async {
+  ///
+  /// 返回 `true` 表示 Host 侧仍保留该成员（断线宽限期内重连），已自动入房。
+  Future<bool> requestPairing() async {
     final peerBaseUrl = _peerBaseUrl;
     if (peerBaseUrl == null) {
       throw const WsException(message: 'peer base url is not ready');
@@ -99,6 +101,11 @@ class RemoteRoomClient {
       );
     }
     response.ensureSuccess();
+    final data = response.data;
+    if (data is Map<String, dynamic>) {
+      return data['rejoined'] == true;
+    }
+    return false;
   }
 
   /// 提交共享文件。

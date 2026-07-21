@@ -16,27 +16,33 @@ import (
 	"instant_share/server/shared/consts"
 )
 
+// MemberDisconnectGrace 已入房 Peer 断线后保留成员的宽限期；超时踢出。
+// 覆盖客户端短时重连窗口（约 1+2+4s 退避 + 单次超时），进程被杀则宽限结束后从 Host 列表消失。
+var MemberDisconnectGrace = 45 * time.Second
+
 // WSController 房间 WebSocket 控制器。
 type WSController struct {
 	room   *roomsvc.Service
 	mirror *roomsvc.MirrorService
 	ws     *infraws.Client
 
-	mu         sync.RWMutex
-	peerConns  map[string]*infraws.Connection // deviceID → 当前 Peer 连接
-	authorized map[string]bool                // 本进程内已审批标记（与 room 状态互补）
-	stopSweep  chan struct{}                  // 关闭 sweepExpired goroutine
+	mu               sync.RWMutex
+	peerConns        map[string]*infraws.Connection // deviceID → 当前 Peer 连接
+	authorized       map[string]bool                // 本进程内已审批标记（与 room 状态互补）
+	disconnectTimers map[string]*time.Timer         // 断线踢人倒计时
+	stopSweep        chan struct{}                  // 关闭 sweepExpired goroutine
 }
 
 // NewWSController 创建房间 WS 控制器。
 func NewWSController(room *roomsvc.Service, mirror *roomsvc.MirrorService, ws *infraws.Client) *WSController {
 	return &WSController{
-		room:       room,
-		mirror:     mirror,
-		ws:         ws,
-		peerConns:  make(map[string]*infraws.Connection),
-		authorized: make(map[string]bool),
-		stopSweep:  make(chan struct{}),
+		room:             room,
+		mirror:           mirror,
+		ws:               ws,
+		peerConns:        make(map[string]*infraws.Connection),
+		authorized:       make(map[string]bool),
+		disconnectTimers: make(map[string]*time.Timer),
+		stopSweep:        make(chan struct{}),
 	}
 }
 
@@ -57,6 +63,7 @@ func (c *WSController) Register(client *infraws.Client) {
 
 // Stop 停止后台 sweep goroutine；进程退出前调用。
 func (c *WSController) Stop() {
+	c.cancelAllMemberRemovals()
 	select {
 	case <-c.stopSweep:
 	default:
@@ -69,6 +76,7 @@ func (c *WSController) handleConnect(role, _ string, deviceID string) {
 	if role != infraws.RolePeer {
 		return
 	}
+	c.cancelMemberRemoval(deviceID)
 	if conn, ok := c.ws.GetConnection(deviceID, deviceID); ok {
 		c.mu.Lock()
 		c.peerConns[deviceID] = conn
@@ -79,7 +87,7 @@ func (c *WSController) handleConnect(role, _ string, deviceID string) {
 
 // handleDisconnect Peer 断开时清理本地连接表。
 // 若仍在 pending（未入房），撤销申请，避免 Host 继续审批已取消/已离线的 Peer。
-// 已入房成员不断开即踢出（重连场景保留 members）。
+// 已入房成员：宽限期后踢出（短时重连可保留；关机/杀进程超时后 Host 列表更新）。
 func (c *WSController) handleDisconnect(role, _ string, deviceID string) {
 	if role != infraws.RolePeer {
 		return
@@ -91,6 +99,9 @@ func (c *WSController) handleDisconnect(role, _ string, deviceID string) {
 
 	if err := c.room.Reject(deviceID); err == nil {
 		c.room.NotifyPendingUpdated()
+	}
+	if c.room.IsAuthorizedPeer(deviceID) {
+		c.scheduleMemberRemoval(deviceID)
 	}
 }
 
@@ -117,15 +128,39 @@ func (c *WSController) handlePairingRequest(_ context.Context, conn *infraws.Con
 		return conn.WriteResponse(infraws.Error(consts.TypePairingRequestAck, packet.RequestID, infraws.CodeForbidden, "device_id mismatch"))
 	}
 
-	pending, err := c.room.RequestPairing(req.DeviceID, req.DisplayName, req.PeerBaseURL)
+	pending, rejoined, err := c.room.RequestPairing(req.DeviceID, req.DisplayName, req.PeerBaseURL)
 	if err != nil {
 		return conn.WriteResponse(infraws.Error(consts.TypePairingRequestAck, packet.RequestID, roomErrorCode(err), err.Error()))
 	}
 
+	c.cancelMemberRemoval(conn.DeviceID())
 	c.mu.Lock()
 	c.peerConns[conn.DeviceID()] = conn
-	c.authorized[conn.DeviceID()] = false
+	c.authorized[conn.DeviceID()] = rejoined
 	c.mu.Unlock()
+
+	// 宽限期内同 deviceID 再次申请：直接视为已入房，推送 approve，避免 Host 再审出重复成员。
+	if rejoined {
+		member := room.Member{
+			DeviceID:    pending.DeviceID,
+			DisplayName: pending.DisplayName,
+			PeerBaseURL: pending.PeerBaseURL,
+		}
+		approveData := map[string]any{
+			"room_id":       c.room.RoomID(),
+			"host_base_url": c.room.HostBaseURL(),
+			"member":        member,
+		}
+		_ = conn.WriteResponse(infraws.Success(consts.TypePairingApprove, "", approveData))
+		c.room.NotifyCatalogUpdated()
+		return conn.WriteResponse(infraws.Success(consts.TypePairingRequestAck, packet.RequestID, map[string]any{
+			"rejoined":      true,
+			"device_id":     pending.DeviceID,
+			"display_name":  pending.DisplayName,
+			"peer_base_url": pending.PeerBaseURL,
+		}))
+	}
+
 	c.room.NotifyPendingUpdated()
 	return conn.WriteResponse(infraws.Success(consts.TypePairingRequestAck, packet.RequestID, pending))
 }
@@ -219,6 +254,7 @@ func (c *WSController) handleRoomLeave(_ context.Context, conn *infraws.Connecti
 	}
 
 	deviceID := conn.DeviceID()
+	c.cancelMemberRemoval(deviceID)
 	_, _, removed := c.room.RemoveMember(deviceID)
 	c.mu.Lock()
 	delete(c.peerConns, deviceID)
@@ -330,6 +366,7 @@ func (c *WSController) SyncHostCatalog(status share.Status) {
  * 推送 room.notify room_closed，清空本地连接表，NotifyPendingUpdated。
  */
 func (c *WSController) CloseRoom() {
+	c.cancelAllMemberRemovals()
 	c.room.Close()
 	c.mu.Lock()
 	peers := make([]*infraws.Connection, 0, len(c.peerConns))
@@ -346,6 +383,45 @@ func (c *WSController) CloseRoom() {
 		_ = conn.Close()
 	}
 	c.room.NotifyPendingUpdated()
+}
+
+// scheduleMemberRemoval 断线后延迟踢出已入房成员。
+func (c *WSController) scheduleMemberRemoval(deviceID string) {
+	c.mu.Lock()
+	if old, ok := c.disconnectTimers[deviceID]; ok {
+		old.Stop()
+	}
+	c.disconnectTimers[deviceID] = time.AfterFunc(MemberDisconnectGrace, func() {
+		c.mu.Lock()
+		delete(c.disconnectTimers, deviceID)
+		_, online := c.peerConns[deviceID]
+		c.mu.Unlock()
+		if online {
+			return
+		}
+		if _, _, removed := c.room.RemoveMember(deviceID); removed {
+			c.room.NotifyCatalogUpdated()
+		}
+	})
+	c.mu.Unlock()
+}
+
+func (c *WSController) cancelMemberRemoval(deviceID string) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if t, ok := c.disconnectTimers[deviceID]; ok {
+		t.Stop()
+		delete(c.disconnectTimers, deviceID)
+	}
+}
+
+func (c *WSController) cancelAllMemberRemovals() {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	for id, t := range c.disconnectTimers {
+		t.Stop()
+		delete(c.disconnectTimers, id)
+	}
 }
 
 // isAuthorized 本进程授权标记或 room 持久成员态任一满足即视为已审批。
