@@ -7,7 +7,6 @@ import (
 	"sync"
 	"time"
 
-	"instant_share/server/internal/application/room/repository"
 	"instant_share/server/internal/domain/room"
 )
 
@@ -46,10 +45,10 @@ type Service struct {
 	// now 当前时间；测试可 SetNow 注入。
 	now func() time.Time
 
-	// onCatalogUpdated 目录变更回调（bootstrap 注入）。
-	onCatalogUpdated repository.CatalogUpdatedHook
-	// onPendingUpdated pending 变更回调。
-	onPendingUpdated repository.PendingUpdatedHook
+	// onCatalogUpdated 目录变更通知（装配层注入，见 hooks.go）。
+	onCatalogUpdated CatalogUpdatedHook
+	// onPendingUpdated pending 变更通知。
+	onPendingUpdated PendingUpdatedHook
 }
 
 /**
@@ -66,11 +65,11 @@ func NewService() *Service {
 }
 
 /**
- * @description: SetHooks 注册跨域通知回调（由 bootstrap 装配，解耦 interfaces）。
+ * @description: SetHooks 注册应用内变更通知（由 bootstrap 装配，解耦 interfaces）。
  * @param {CatalogUpdatedHook} onCatalog 目录变更
  * @param {PendingUpdatedHook} onPending 待审批列表变更
  */
-func (s *Service) SetHooks(onCatalog repository.CatalogUpdatedHook, onPending repository.PendingUpdatedHook) {
+func (s *Service) SetHooks(onCatalog CatalogUpdatedHook, onPending PendingUpdatedHook) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.onCatalogUpdated = onCatalog

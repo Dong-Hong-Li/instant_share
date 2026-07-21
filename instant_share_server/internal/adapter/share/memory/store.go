@@ -1,4 +1,4 @@
-// Package memory 分享会话内存仓储实现。
+// Package memory 实现 share 上下文的内存侧 repository 端口。
 package memory
 
 import (
@@ -7,14 +7,18 @@ import (
 	"instant_share/server/internal/domain/share"
 )
 
-// Store 内存分享会话存储（进程内单例）。
+// Store 实现 application/share/repository.Store（进程内内存）。
 type Store struct {
 	mu     sync.RWMutex
-	port   int          // 默认/当前 HTTP 端口
-	status share.Status // 当前分享快照
+	port   int
+	status share.Status
 }
 
-// NewStore 创建内存 Store，初始为未分享状态。
+/**
+ * @description: NewStore 创建空闲会话存储。
+ * @param {int} port 初始 HTTP 端口
+ * @return {*Store}
+ */
 func NewStore(port int) *Store {
 	return &Store{
 		port: port,
@@ -27,14 +31,20 @@ func NewStore(port int) *Store {
 	}
 }
 
-// Snapshot 返回状态深拷贝，避免调用方误改内部数据。
+/**
+ * @description: Snapshot 返回状态深拷贝。
+ * @return {share.Status}
+ */
 func (s *Store) Snapshot() share.Status {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	return share.CloneStatus(s.status)
 }
 
-// ReplaceActive 整体替换为新的活跃分享会话。
+/**
+ * @description: ReplaceActive 整体替换会话状态，并同步 port 字段。
+ * @param {share.Status} status
+ */
 func (s *Store) ReplaceActive(status share.Status) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -42,7 +52,9 @@ func (s *Store) ReplaceActive(status share.Status) {
 	s.port = status.Port
 }
 
-// Clear 停止分享并清空文件/文章，保留 port 配置。
+/**
+ * @description: Clear 清空会话内容，保留 port。
+ */
 func (s *Store) Clear() {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -54,7 +66,11 @@ func (s *Store) Clear() {
 	}
 }
 
-// FileByID 在当前分享文件列表中按 id 查找。
+/**
+ * @description: FileByID 按 id 查找文件。
+ * @param {string} id
+ * @return {share.ShareFile, bool}
+ */
 func (s *Store) FileByID(id string) (share.ShareFile, bool) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
@@ -66,14 +82,20 @@ func (s *Store) FileByID(id string) (share.ShareFile, bool) {
 	return share.ShareFile{}, false
 }
 
-// Port 返回当前端口配置。
+/**
+ * @description: Port 读取当前端口。
+ * @return {int}
+ */
 func (s *Store) Port() int {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	return s.port
 }
 
-// SetPort 更新端口并同步到 status.Port。
+/**
+ * @description: SetPort 更新端口与状态中的 Port 字段。
+ * @param {int} port
+ */
 func (s *Store) SetPort(port int) {
 	s.mu.Lock()
 	defer s.mu.Unlock()

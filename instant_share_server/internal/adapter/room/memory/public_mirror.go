@@ -1,4 +1,4 @@
-// Package memory 房间相关内存仓储实现。
+// Package memory 实现 room 上下文的内存侧 repository 端口。
 package memory
 
 import (
@@ -7,18 +7,24 @@ import (
 	"instant_share/server/internal/domain/room"
 )
 
-// PublicMirror 内存公开目录镜像（Peer 聚合目录在 Host 侧的缓存）。
+// PublicMirror 实现 application/room/repository.PublicMirror（进程内内存）。
 type PublicMirror struct {
 	mu      sync.RWMutex
-	entries []room.SharedEntry // nil 表示未设置/已清空
+	entries []room.SharedEntry
 }
 
-// NewPublicMirror 创建空镜像 store。
+/**
+ * @description: NewPublicMirror 创建空镜像。
+ * @return {*PublicMirror}
+ */
 func NewPublicMirror() *PublicMirror {
 	return &PublicMirror{entries: nil}
 }
 
-// Set 覆盖镜像目录；entries=nil 等价于 Clear。
+/**
+ * @description: Set 覆盖镜像条目；nil 表示清空。
+ * @param {[]room.SharedEntry} entries
+ */
 func (s *PublicMirror) Set(entries []room.SharedEntry) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -31,12 +37,17 @@ func (s *PublicMirror) Set(entries []room.SharedEntry) {
 	s.entries = cp
 }
 
-// Clear 清空镜像。
+/**
+ * @description: Clear 清空镜像。
+ */
 func (s *PublicMirror) Clear() {
 	s.Set(nil)
 }
 
-// Entries 返回镜像副本；无数据时返回 nil（非空切片）。
+/**
+ * @description: Entries 返回镜像副本；无数据时返回 nil。
+ * @return {[]room.SharedEntry}
+ */
 func (s *PublicMirror) Entries() []room.SharedEntry {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
