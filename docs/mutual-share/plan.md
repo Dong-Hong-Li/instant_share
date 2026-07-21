@@ -396,7 +396,7 @@ Peer 本机文件列表变化 → 先完成本机 `ShareSessionService.syncShare
 
 ```bash
 git commit -m "$(cat <<'EOF'
-feat(app): sync room catalog via share.offer without web changes
+feat(app): sync room catalog via share.offer with web aggregated catalog
 
 EOF
 )"
