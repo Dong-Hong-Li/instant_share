@@ -245,7 +245,13 @@ class MutualShareProvider extends ChangeNotifier {
         _countdownTimer?.cancel();
         _phase = MutualSharePhase.joinedRoom;
         _remoteHostBaseUrl = outcome.hostBaseUrl;
+        final epoch = _mirrorEpoch;
         final snapshot = await _remote?.fetchSnapshot();
+        // 若等待快照期间用户已 cancel（epoch 递增/phase 被置回 idle），
+        // 则不再写入 _catalog、不通知、不镜像、不触发 onJoinedRoom。
+        if (epoch != _mirrorEpoch || _phase != MutualSharePhase.joinedRoom) {
+          return;
+        }
         if (snapshot != null) {
           _catalog = snapshot.catalog;
           _members = snapshot.members;
@@ -297,18 +303,18 @@ class MutualShareProvider extends ChangeNotifier {
     final data = response.data;
     if (data is! Map<String, dynamic>) return;
     final event = RoomNotifyEvent.fromJson(data);
+    // 注意：此回调来自本机 admin WS 的 room.notify，即“本地 Host”房间事件，
+    // 不代表本机作为 Peer 加入的远端房间目录，绝不能据此镜像到本机 Go。
+    // 镜像仅允许来自 `_handleRemoteNotify`（远端 notify）或 approved 配对
+    // 后的快照拉取（见 `_handlePairingOutcome`）。
     if (event.event == 'catalog_updated') {
       _catalog = event.catalog;
       _members = event.members;
-      unawaited(_mirrorPublicCatalog());
     } else if (event.event == 'pending_updated') {
       _pending = event.pending;
       _members = event.members;
     } else {
-      if (event.catalog.isNotEmpty) {
-        _catalog = event.catalog;
-        unawaited(_mirrorPublicCatalog());
-      }
+      if (event.catalog.isNotEmpty) _catalog = event.catalog;
       if (event.pending.isNotEmpty) _pending = event.pending;
       if (event.members.isNotEmpty) _members = event.members;
     }
