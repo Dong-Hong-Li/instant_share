@@ -37,6 +37,7 @@ class TabSidebar extends StatelessWidget {
     required this.selected,
     required this.onSelected,
     this.topPadding = 0,
+    this.linksBadgeCount = 0,
   });
 
   /// 颜色配置。
@@ -56,6 +57,9 @@ class TabSidebar extends StatelessWidget {
 
   /// topPadding。
   final double topPadding;
+
+  /// 「链接」待审批数量；>0 时显示角标。
+  final int linksBadgeCount;
 
   /// 构建界面。
   @override
@@ -81,6 +85,7 @@ class TabSidebar extends StatelessWidget {
               tab: tab,
               active: tab == selected,
               onTap: () => onSelected(tab),
+              badgeCount: tab == TabSidebarItem.links ? linksBadgeCount : 0,
             ),
           const Spacer(),
           _NavIconButton(
@@ -124,6 +129,7 @@ class _NavItem extends StatelessWidget {
     required this.tab,
     required this.active,
     required this.onTap,
+    this.badgeCount = 0,
   });
 
   /// 颜色配置。
@@ -140,6 +146,9 @@ class _NavItem extends StatelessWidget {
 
   /// 点击回调。
   final VoidCallback onTap;
+
+  /// 角标数量。
+  final int badgeCount;
 
   /// 构建界面。
   @override
@@ -162,22 +171,39 @@ class _NavItem extends StatelessWidget {
           padding: EdgeInsets.symmetric(vertical: h6),
           child: Column(
             children: [
-              Container(
+              SizedBox(
                 width: w40,
                 height: w40,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: active
-                      ? colorValue.homeUploadButtonFill.withValues(alpha: 0.9)
-                      : Colors.transparent,
-                  borderRadius: BorderRadius.circular(s12),
-                ),
-                child: Icon(
-                  tab.icon,
-                  size: f20,
-                  color: active
-                      ? colorValue.homeUploadIconColor
-                      : inactiveColor,
+                child: Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    Positioned.fill(
+                      child: Container(
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          color: active
+                              ? colorValue.homeUploadButtonFill.withValues(
+                                  alpha: 0.9,
+                                )
+                              : Colors.transparent,
+                          borderRadius: BorderRadius.circular(s12),
+                        ),
+                        child: Icon(
+                          tab.icon,
+                          size: f20,
+                          color: active
+                              ? colorValue.homeUploadIconColor
+                              : inactiveColor,
+                        ),
+                      ),
+                    ),
+                    if (badgeCount > 0)
+                      Positioned(
+                        top: -2,
+                        right: -2,
+                        child: _NavBadge(count: badgeCount),
+                      ),
+                  ],
                 ),
               ),
               SizedBox(height: h4),
@@ -191,6 +217,36 @@ class _NavItem extends StatelessWidget {
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class _NavBadge extends StatelessWidget {
+  const _NavBadge({required this.count});
+
+  final int count;
+
+  @override
+  Widget build(BuildContext context) {
+    final label = count > 99 ? '99+' : '$count';
+    return Container(
+      constraints: BoxConstraints(minWidth: w16, minHeight: w16),
+      padding: EdgeInsets.symmetric(horizontal: w4),
+      decoration: BoxDecoration(
+        color: const Color(0xFFE53935),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: Colors.white, width: 1.5),
+      ),
+      alignment: Alignment.center,
+      child: Text(
+        label,
+        style: TextStyle(
+          fontSize: f9,
+          height: 1,
+          fontWeight: FontWeight.w700,
+          color: Colors.white,
         ),
       ),
     );

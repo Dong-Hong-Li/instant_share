@@ -93,6 +93,9 @@ mixin TabPagePcMixin on BaseStatePage<TabPage> {
       setState(() => tab = TabSidebarItem.home);
     }
 
+    final mutual = ref.watch(mutualShareProvider);
+    final linksBadgeCount = mutual.pending.length;
+
     // Windows / Linux：侧栏顶到窗口上沿；WindowCaption 只盖右侧内容区，
     // 避免整行 caption 把侧栏顶出一条空白。
     // macOS：无 WindowCaption，两侧共用 topInset 避开交通灯。
@@ -107,6 +110,7 @@ mixin TabPagePcMixin on BaseStatePage<TabPage> {
                 selected: tab,
                 onSelected: (value) => setState(() => tab = value),
                 topPadding: topInset,
+                linksBadgeCount: linksBadgeCount,
               ),
               Expanded(child: buildTabBody(colorValue, home, topInset)),
             ],
@@ -121,6 +125,7 @@ mixin TabPagePcMixin on BaseStatePage<TabPage> {
                 selected: tab,
                 onSelected: (value) => setState(() => tab = value),
                 topPadding: 0,
+                linksBadgeCount: linksBadgeCount,
               ),
               Expanded(
                 child: Column(
@@ -135,7 +140,7 @@ mixin TabPagePcMixin on BaseStatePage<TabPage> {
 
     return buildTabGradientShell(
       home: home,
-      joinedRoom: ref.watch(mutualShareProvider).joinedRoom,
+      joinedRoom: mutual.joinedRoom,
       child: SizedBox.expand(child: content),
     );
   }

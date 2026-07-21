@@ -82,8 +82,8 @@ mixin TabPageAppMixin on BaseStatePage<TabPage> {
     };
   }
 
-  TabNavItem _toNavItem(TabSidebarItem item) =>
-      TabNavItem(icon: item.icon, label: item.label);
+  TabNavItem _toNavItem(TabSidebarItem item, {int badgeCount = 0}) =>
+      TabNavItem(icon: item.icon, label: item.label, badgeCount: badgeCount);
 
   /// App 竖屏壳层：[CrossFadeSwitcher] 切换 + shell 底栏导航。
   Widget buildTabBottomNavLayout({
@@ -96,15 +96,24 @@ mixin TabPageAppMixin on BaseStatePage<TabPage> {
       setState(() => tab = TabSidebarItem.home);
     }
 
+    final mutual = ref.watch(mutualShareProvider);
+    final linksBadgeCount = mutual.pending.length;
     final activeIndex = visibleTabs.indexOf(tab);
-    final navItems = visibleTabs.map(_toNavItem).toList(growable: false);
+    final navItems = visibleTabs
+        .map(
+          (item) => _toNavItem(
+            item,
+            badgeCount: item == TabSidebarItem.links ? linksBadgeCount : 0,
+          ),
+        )
+        .toList(growable: false);
     final pages = visibleTabs
         .map((item) => buildTabPage(item, colorValue, home, topInset))
         .toList(growable: false);
 
     return buildTabGradientShell(
       home: home,
-      joinedRoom: ref.watch(mutualShareProvider).joinedRoom,
+      joinedRoom: mutual.joinedRoom,
       child: AppPageShell(
         activeIndex: activeIndex,
         onTabSelected: (index) => setState(() => tab = visibleTabs[index]),

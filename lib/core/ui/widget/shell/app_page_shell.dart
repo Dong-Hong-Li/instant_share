@@ -70,6 +70,7 @@ class AppPageShell extends StatelessWidget {
                 label: tabItems[i].label,
                 active: index == i,
                 onTap: () => onTabSelected(i),
+                badgeCount: tabItems[i].badgeCount,
               ),
           ],
         ),

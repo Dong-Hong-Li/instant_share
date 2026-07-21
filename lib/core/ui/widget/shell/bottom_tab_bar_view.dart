@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:instant_share/core/ui/extension/theme_extension.dart';
 import 'package:instant_share/resource/color/color_value.dart';
+import 'package:instant_share/resource/screen_utils/font_size.dart';
 import 'package:instant_share/resource/screen_utils/layout_dimens_h.dart';
 import 'package:instant_share/resource/screen_utils/layout_dimens_w.dart';
 
@@ -116,6 +117,7 @@ class BottomTabSlot extends StatelessWidget {
     required this.active,
     required this.onTap,
     this.semanticLabel,
+    this.badgeCount = 0,
   });
 
   /// icon。
@@ -132,6 +134,9 @@ class BottomTabSlot extends StatelessWidget {
 
   /// semanticLabel。
   final String? semanticLabel;
+
+  /// 角标数量。
+  final int badgeCount;
 
   /// 构建界面。
   @override
@@ -158,13 +163,29 @@ class BottomTabSlot extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.center,
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  AnimatedSwitcher(
-                    duration: const Duration(milliseconds: 200),
-                    child: Icon(
-                      key: ValueKey('$icon-$active'),
-                      icon,
-                      color: color,
-                      size: w23,
+                  SizedBox(
+                    width: w28,
+                    height: w23,
+                    child: Stack(
+                      clipBehavior: Clip.none,
+                      alignment: Alignment.center,
+                      children: [
+                        AnimatedSwitcher(
+                          duration: const Duration(milliseconds: 200),
+                          child: Icon(
+                            key: ValueKey('$icon-$active'),
+                            icon,
+                            color: color,
+                            size: w23,
+                          ),
+                        ),
+                        if (badgeCount > 0)
+                          Positioned(
+                            top: -4,
+                            right: -6,
+                            child: _BottomTabBadge(count: badgeCount),
+                          ),
+                      ],
                     ),
                   ),
                   SizedBox(height: h4),
@@ -188,6 +209,36 @@ class BottomTabSlot extends StatelessWidget {
               ),
             ),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class _BottomTabBadge extends StatelessWidget {
+  const _BottomTabBadge({required this.count});
+
+  final int count;
+
+  @override
+  Widget build(BuildContext context) {
+    final label = count > 99 ? '99+' : '$count';
+    return Container(
+      constraints: BoxConstraints(minWidth: w16, minHeight: w16),
+      padding: EdgeInsets.symmetric(horizontal: w4),
+      decoration: BoxDecoration(
+        color: const Color(0xFFE53935),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: Colors.white, width: 1.5),
+      ),
+      alignment: Alignment.center,
+      child: Text(
+        label,
+        style: TextStyle(
+          fontSize: f9,
+          height: 1,
+          fontWeight: FontWeight.w700,
+          color: Colors.white,
         ),
       ),
     );
