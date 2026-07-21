@@ -97,21 +97,6 @@ class _JoinedRoomBody extends StatelessWidget {
             ),
           ),
           SizedBox(height: h12),
-          if (!provider.isSharing) ...[
-            Text(
-              '开启本机分享后，所选文件才会出现在房间目录供对方下载',
-              textAlign: TextAlign.center,
-              style: TextStyle(fontSize: f12, color: colorValue.homeHintColor),
-            ),
-            SizedBox(height: h8),
-            FilledButton.tonal(
-              onPressed: provider.isShareBusy || !provider.hasFiles
-                  ? null
-                  : provider.toggleSharing,
-              child: Text(provider.hasFiles ? '开启本机分享并发布' : '请先添加文件'),
-            ),
-            SizedBox(height: h10),
-          ],
           HomeSummaryCard(
             colorValue: colorValue,
             fileCount: provider.fileCount,

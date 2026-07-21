@@ -396,9 +396,12 @@ class HomeProvider extends ChangeNotifier {
       }
 
       if (changed) {
+        // 选文件即开启本机分享并 offer 到房间（不再依赖手动「开启并发布」）。
         if (_isSharing) {
           await _syncSharingFiles();
           await _offerRoomFilesIfNeeded();
+        } else {
+          await _startSharing();
         }
         notifyListeners();
       }
