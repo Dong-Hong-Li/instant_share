@@ -79,6 +79,41 @@ func TestRoomServiceSweepExpired(t *testing.T) {
 	}
 }
 
+// TestRoomServiceRemoveMemberClearsCatalog。
+func TestRoomServiceRemoveMemberClearsCatalog(t *testing.T) {
+	room := NewRoomService()
+	room.EnsureRoom("host", "http://192.168.1.10:8080", "session")
+	if _, err := room.RequestPairing("peer", "Peer", "http://192.168.1.20:8080"); err != nil {
+		t.Fatalf("request failed: %v", err)
+	}
+	if _, err := room.Approve("peer"); err != nil {
+		t.Fatalf("approve failed: %v", err)
+	}
+	room.SetOwnerFiles("host", "Host", "http://192.168.1.10:8080", []model.SharedFileMeta{{
+		ID: "a", Name: "a.txt", Size: 1, DownloadPath: "/api/v1/share/files/a/download",
+	}})
+	room.SetOwnerFiles("peer", "Peer", "http://192.168.1.20:8080", []model.SharedFileMeta{{
+		ID: "b", Name: "b.txt", Size: 2, DownloadPath: "/api/v1/share/files/b/download",
+	}})
+
+	catalog, revision, removed := room.RemoveMember("peer")
+	if !removed {
+		t.Fatalf("expected member removed")
+	}
+	if room.IsAuthorizedPeer("peer") {
+		t.Fatalf("peer should no longer be authorized")
+	}
+	if len(room.Members()) != 0 {
+		t.Fatalf("members = %#v, want empty", room.Members())
+	}
+	if len(catalog) != 1 || catalog[0].OwnerID != "host" {
+		t.Fatalf("catalog after remove = %#v", catalog)
+	}
+	if revision < 1 {
+		t.Fatalf("revision = %d", revision)
+	}
+}
+
 // TestRoomServiceSetOwnerFilesAggregates。
 func TestRoomServiceSetOwnerFilesAggregates(t *testing.T) {
 	room := NewRoomService()

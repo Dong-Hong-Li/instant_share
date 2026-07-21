@@ -49,6 +49,7 @@ func (h *WSRoomHandler) Register(client *websocket.Client) {
 	client.RegisterHandler("pairing.decide", h.handlePairingDecide)
 	client.RegisterHandler("share.offer", h.handleShareOffer)
 	client.RegisterHandler("room.snapshot", h.handleRoomSnapshot)
+	client.RegisterHandler("room.leave", h.handleRoomLeave)
 	client.SetConnectionHooks(h.handleConnect, h.handleDisconnect)
 	go h.sweepExpired()
 }
@@ -170,6 +171,25 @@ func (h *WSRoomHandler) handlePairingDecide(_ context.Context, conn *websocket.C
 	}
 	h.broadcastPendingUpdated()
 	return conn.WriteResponse(websocket.Success("pairing.decide_ack", packet.RequestID, nil))
+}
+
+// handleRoomLeave Peer 主动离房：移除成员、清理其目录并通知 Host。
+func (h *WSRoomHandler) handleRoomLeave(_ context.Context, conn *websocket.Connection, _ []byte, packet websocket.Packet) error {
+	if conn.Role() != websocket.RolePeer {
+		return conn.WriteResponse(websocket.Error("room.leave_ack", packet.RequestID, websocket.CodeForbidden, "peer only"))
+	}
+
+	deviceID := conn.DeviceID()
+	_, _, removed := h.room.RemoveMember(deviceID)
+	h.mu.Lock()
+	delete(h.peerConns, deviceID)
+	delete(h.authorized, deviceID)
+	h.mu.Unlock()
+
+	if removed {
+		h.broadcastCatalogUpdated()
+	}
+	return conn.WriteResponse(websocket.Success("room.leave_ack", packet.RequestID, nil))
 }
 
 // handleShareOffer。

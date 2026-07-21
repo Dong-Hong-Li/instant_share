@@ -146,6 +146,27 @@ func (s *RoomService) Reject(deviceID string) error {
 	return nil
 }
 
+// RemoveMember 移除已入房成员，并清理其共享目录（主动离房）。
+func (s *RoomService) RemoveMember(deviceID string) ([]model.SharedEntry, int, bool) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	deviceID = strings.TrimSpace(deviceID)
+	if deviceID == "" {
+		return s.catalogLocked(), s.revision, false
+	}
+	_, existed := s.members[deviceID]
+	if !existed {
+		if _, hasCatalog := s.ownerCatalogs[deviceID]; !hasCatalog {
+			return s.catalogLocked(), s.revision, false
+		}
+	}
+	delete(s.members, deviceID)
+	delete(s.ownerCatalogs, deviceID)
+	s.revision++
+	return s.catalogLocked(), s.revision, true
+}
+
 // SweepExpired 清理过期配对请求。
 func (s *RoomService) SweepExpired() []string {
 	s.mu.Lock()
