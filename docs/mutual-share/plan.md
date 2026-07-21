@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** 实现 Host 审批多 Peer 入房、App 内聚合文件目录、下载直连文件所有者本机；不动 PC Web `/share`，Host 顶栏保持文章/文件双模式。
+**Goal:** 实现 Host 审批多 Peer 入房、App 内聚合文件目录、PC Web `/share` 展示房间 catalog、下载直连文件所有者本机；Host 顶栏保持文章/文件双模式。
 
 **Architecture:** Host Go 新增 `RoomService` + WS `peer` 角色（配对 / offer / notify）；文件字节不落 Host。Flutter 本机仍用 `ShareSessionService`（admin），新增 `RemoteRoomClient` + `MutualShareProvider`；右上角「+」发起配对；现有「链接」Tab（`LinkPage`）承载待审批/成员列表；仅 Peer 入房后顶栏切「共享文件」。
 
@@ -15,7 +15,7 @@
 - Peer **禁止**以 `admin` 控制 Host；admin 仅本机 Flutter ↔ 本机服务。
 - **禁止**默认把 Peer 文件上传/中转到 Host 磁盘；`share.offer` 仅元数据。
 - **不做**下载鉴权 / token。
-- PC Web `/share` **不改**行为（仍只读本机 `ShareStatus`）。
+- PC Web `/share` 在房间 catalog 非空时展示聚合目录（见 [web-room-catalog-design](../superpowers/specs/2026-07-21-web-room-catalog-design.md)）；无 catalog 时仍只读本机 `ShareStatus`。
 - Host 顶栏保持 `[分享文章 | 分享文件]`；仅 Peer `joinedRoom` 切 `[共享文件]`。
 - 支持**多 Peer**；配对等待 **60s**。
 - 包名/import 前缀：`instant_share`（Flutter）/ `instant_share/server/...`（Go）。
@@ -52,7 +52,7 @@
 | `lib/features/home/view/home_share_page_*.dart` | 右上角「+」、Peer 顶栏/背景 |
 | `lib/features/home/provider/provider.dart` | 本机 sync 后触发 host 侧 catalog 刷新编排（或经 MutualShareProvider） |
 
-**不改：** `instant_share_server` 公开 Web 静态资源与 `PublicHandler` 的 catalog 语义；`/share` 仍只映射本机 `ShareService`。
+**Web catalog（Task 9+，见 superpowers plan）：** `PublicHandler` / viewer `share.status` 经 `buildPublicShareStatus` 合并房间 catalog；Peer 镜像经 admin `room.public_catalog.sync`。
 
 ---
 
@@ -376,7 +376,7 @@ EOF
 1. Peer 入房后：将本机当前分享文件（若已 start）或用户在 Peer 侧选中并 sync 到本机 `ShareService` 的文件，通过 `RemoteRoomClient.offerFiles` 全量快照上报  
 2. Host：本机 `share.sync` 成功后服务端已更新 catalog（Task 2）；App 收 `catalog_updated` 刷新  
 3. 列表项下载：`Uri.parse(entry.baseUrl).resolve(entry.downloadPath)`，**禁止**拼到本机 base  
-4. **不修改** Web 前端工程与 `PublicHandler` 列表语义
+4. Web 展示 room catalog：`PublicHandler` 合并 Host `RoomService` 或 Peer 镜像；见 superpowers web-room-catalog 计划
 
 - [ ] **Step 1: offer 编排（全量快照）**
 
@@ -390,7 +390,7 @@ Peer 本机文件列表变化 → 先完成本机 `ShareSessionService.syncShare
 
 1. B offer 后 A/B App 均见条目  
 2. 下载 B 文件请求打到 B 的 IP（代理/日志确认）  
-3. 浏览器打开 A 的 `/share` **看不到** B 的文件  
+3. 浏览器打开 A 的 `/share` **能看到** B 的文件，下载打到 B 的 IP；打开 B 的 `/share` **能看到** A 的文件，下载打到 A 的 IP
 
 - [ ] **Step 4: Commit**
 
@@ -449,7 +449,7 @@ EOF
 - [ ] 大文件：仅 offer 元数据，Host 磁盘无明显增长  
 - [ ] 下载各打所有者  
 - [ ] Host 顶栏不变；Peer 顶栏「共享文件」  
-- [ ] PC Web `/share` 无 Peer 文件  
+- [ ] PC Web `/share`：A/B 链接均见聚合文件；下载各打所有者；离房后对方文件消失
 - [ ] Host `share.stop` → Peer 回到 idle  
 - [ ] 连接自己被拒绝  
 - [ ] `flutter analyze` + `cd instant_share_server && go test ./...` 通过  
@@ -476,7 +476,7 @@ EOF
 | peer 非 admin | 2 |
 | 本机链接下载 / 无中转 | 1, 6 |
 | Host 顶栏不变 / Peer「共享文件」 | 7 |
-| PC Web 不变 | 6, 8（验证） |
+| PC Web 聚合 catalog | 6, 8（验证）；实现见 superpowers web-room-catalog plan |
 | 不做下载鉴权 | 全局约束 |
 
 ## 执行方式

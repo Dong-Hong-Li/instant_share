@@ -35,7 +35,7 @@
 | Peer 客户端 | Flutter：连远程 Host WS、本机仍保留 admin |
 | 共享 UI 态 | Peer 已加入：主题色、顶栏「共享文件」；Host 顶栏不变 |
 | 多 Peer | Room 支持多个已批准成员 |
-| PC Web | `/share` 不接入房间 catalog |
+| PC Web | `/share` 展示房间 catalog（Host 读 `RoomService`；Peer 镜像） |
 
 ## 3. 总体架构
 
@@ -80,7 +80,7 @@
 | 连接入口 | 首页右上角「+」弹窗输 IP | 与底部「添加文件」、中央主按钮加号分离 |
 | 成员数 | 多 Peer | 同一 Host 房间可同时有多个已批准成员 |
 | Host 顶栏 | 不变 `[分享文章 \| 分享文件]` | 文章尚未多机去重；仅 Peer 切「共享文件」 |
-| PC Web `/share` | 不改 | 仍只读本机 `ShareStatus`，不展示房间 catalog |
+| PC Web `/share` | 房间 catalog 非空时覆盖 `files` | Host 读 `RoomService.Catalog()`；Peer 经 Flutter 镜像到本机 Go；本机相对 / 他机绝对 `download_url`；文章仍本机 |
 
 ## 4. 逻辑组件
 
@@ -143,10 +143,10 @@ sharing
 | `pairing.request` | ❌ | ✅（申请中） | ❌ |
 | `pairing.approve/reject` | ✅（Host Flutter→Host WS 或本地 API） | ❌ | ❌ |
 | `share.offer`（元数据） | ✅（Host 发布本机变更时可内部转） | ✅ | ❌ |
-| 收 `room.notify` | ✅（App） | ✅ | ❌（Web 不接房间目录） |
-| HTTP 下载所有者文件 | ✅ | ✅（直连所有者） | ✅（仅该服务本机已公开文件，现网行为） |
+| 收 `room.notify` | ✅（App） | ✅ | ❌（Web 经 `share.status` 推送，不订阅 `room.notify`） |
+| HTTP 下载所有者文件 | ✅ | ✅（直连所有者） | ✅（本机相对或他机绝对 URL，直连所有者） |
 
-说明：Host Flutter 对**自己**服务始终 `admin`。审批动作由 Host 的 admin 连接发起（或等价本机 HTTP），不开放给 peer。匿名 `viewer` / PC Web 继续只看本机 `ShareStatus`，不参与房间 catalog。
+说明：Host Flutter 对**自己**服务始终 `admin`。审批动作由 Host 的 admin 连接发起（或等价本机 HTTP），不开放给 peer。匿名 `viewer` / PC Web 通过 `buildPublicShareStatus` 获取聚合目录（catalog 非空时覆盖 `files`）；无 catalog 时与现网一致（仅本机 `ShareStatus`）。
 
 ## 6. 协议设计
 
@@ -311,7 +311,7 @@ Peer 本机：
 | Host 顶栏 | **不切换**，保持文章/文件模式 |
 | 背景色 | Peer `joinedRoom` 使用分享色（具体 token 跟 `HomePalette`） |
 | App 房间目录 | Host/Peer App 展示 `catalog`；下载走所有者 URL |
-| PC Web `/share` | **不变**：只展示该 Host 本机公开文件/文章，不展示 Peer 文件 |
+| PC Web `/share` | 房间 catalog 非空时展示聚合文件（含 Peer）；本机相对 / 他机绝对下载 URL；文章仍本机；批量下载仅同源 |
 
 入口语义分离：右上角「+」= 连接对方；底部摘要栏加号 / 中央主按钮加号 = 添加本机文件（现有），勿混用。
 
@@ -341,7 +341,7 @@ pairing 超时
 4. 目录：B offer 后 App 内 A/B 目录一致；下载 Host 命中 A、Peer 文件命中 B。
 5. 大文件：B offer 10GB 元数据后，A 磁盘占用不因 offer 明显增加。
 6. UI：仅 Peer 顶栏切「共享文件」；Host 顶栏仍为文章/文件。
-7. PC Web：`/share` 不出现 Peer 文件，与现网一致。
+7. PC Web：A/B 双方 `/share` 互见房间文件；下载各打所有者；离房后对方文件消失。
 8. Host 停分享：Peer 退出共享 UI；自己连自己被拒绝。
 
 ## 12. 里程碑建议（非工作计划）
@@ -350,7 +350,7 @@ pairing 超时
 
 1. 协议 + Go `RoomService` + `peer` 角色（多成员）  
 2. Flutter `RemoteRoomClient` + 右上角「+」配对弹窗 + 连接 Tab  
-3. `share.offer` / `room.notify` + App 房间目录 UI（不动 PC Web）  
+3. `share.offer` / `room.notify` + App 房间目录 UI + PC Web 聚合 catalog  
 4. Peer 共享态视觉（色 / 顶栏动画；Host 顶栏不动）  
 5. 联调与异常路径  
 
@@ -361,7 +361,7 @@ pairing 超时
 | B 以 admin 连 A | 权限过大，双写冲突 |
 | B 分块上传文件到 A | 大文件撑满 A 磁盘；与本机路径分享模型不一致 |
 | 纯 P2P 无 Host | 与「连接 Tab 审批、Host 通知」产品流不符，首期成本高 |
-| 改造 PC Web 展示聚合目录 | 需求确认 Web 列表不变 |
+| Host 代理下载他机文件 | 明确不做；Web 直连所有者 |
 | Host 顶栏切「共享文件」 | 文章未多机去重；Host 保持现有双模式 |
 
 ---
