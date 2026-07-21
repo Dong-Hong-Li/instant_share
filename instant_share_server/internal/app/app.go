@@ -22,9 +22,11 @@ type App struct {
 func New(cfg config.Config) *App {
 	share := service.NewShareService(cfg.Host, cfg.Port)
 	room := service.NewRoomService()
+	mirror := service.NewPublicRoomCatalog()
 	wsClient := infraws.NewClient(cfg.WebSocket)
 	wsRoom := handler.NewWSRoomHandler(room, wsClient)
-	wsAdmin := handler.NewWSAdminHandler(share, wsClient, wsRoom)
+	wsAdmin := handler.NewWSAdminHandler(share, wsClient, wsRoom, room, mirror)
+	wsRoom.SetOnCatalogUpdated(wsAdmin.BroadcastShareStatus)
 	wsAdmin.Register(wsClient)
 	wsRoom.Register(wsClient)
 
@@ -38,7 +40,7 @@ func New(cfg config.Config) *App {
 	mux.Handle("/ws", wsClient)
 
 	// 接收者：打包后的 Web 前端（/share/）+ 公开状态 API
-	public := handler.NewPublicHandler(share)
+	public := handler.NewPublicHandler(share, room, mirror)
 	public.Register(mux)
 
 	return &App{

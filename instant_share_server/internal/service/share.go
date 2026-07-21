@@ -58,6 +58,15 @@ func (s *ShareService) Status() model.ShareStatus {
 	return cloneStatus(s.status)
 }
 
+// HTTPBase 返回本机对外可访问的 HTTP 基础地址（不含 /share 后缀），
+// 与 Start() 中拼接 BaseURL 使用的同一 IP/端口来源保持一致。
+func (s *ShareService) HTTPBase() string {
+	s.mu.RLock()
+	port := s.port
+	s.mu.RUnlock()
+	return fmt.Sprintf("http://%s:%d", util.PrimaryLocalIP(), port)
+}
+
 // Start 开启分享会话。
 func (s *ShareService) Start(req model.StartShareRequest) (model.ShareStatus, error) {
 	s.mu.Lock()

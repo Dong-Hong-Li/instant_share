@@ -15,15 +15,19 @@ import (
 
 // PublicHandler 接收者页面：通过 HTTP 查看当前分享的文件列表。
 type PublicHandler struct {
-	share fs.FS
-	files *service.ShareService
+	share  fs.FS
+	files  *service.ShareService
+	room   *service.RoomService
+	mirror *service.PublicRoomCatalog
 }
 
 // NewPublicHandler 创建公开访问处理器。
-func NewPublicHandler(share *service.ShareService) *PublicHandler {
+func NewPublicHandler(share *service.ShareService, room *service.RoomService, mirror *service.PublicRoomCatalog) *PublicHandler {
 	return &PublicHandler{
-		share: webassets.FS(),
-		files: share,
+		share:  webassets.FS(),
+		files:  share,
+		room:   room,
+		mirror: mirror,
 	}
 }
 
@@ -84,10 +88,32 @@ func (h *PublicHandler) handleShareStatus(w http.ResponseWriter, r *http.Request
 	}
 
 	status := h.files.Status()
+	var catalog []model.SharedEntry
+	if h.room != nil {
+		catalog, _ = h.room.Catalog()
+	}
+	var mirror []model.SharedEntry
+	if h.mirror != nil {
+		mirror = h.mirror.Entries()
+	}
+	data := buildPublicShareStatus(status, catalog, mirror, resolveLocalBaseURL(h.room, h.files))
 	writeJSON(w, http.StatusOK, model.APIResponse{
 		OK:   true,
-		Data: toPublicShareStatus(status),
+		Data: data,
 	})
+}
+
+// resolveLocalBaseURL 计算「本机」的公开基础地址：
+// Host 且房间已开启时优先使用 RoomService.HostBaseURL；
+// 否则（Peer 镜像场景或房间未开启）回退到 ShareService 的本机 HTTP 基础地址，
+// 以便镜像中属于本机的条目仍能命中相对下载路径。
+func resolveLocalBaseURL(room *service.RoomService, share *service.ShareService) string {
+	if room != nil {
+		if base := room.HostBaseURL(); base != "" {
+			return base
+		}
+	}
+	return share.HTTPBase()
 }
 
 // handleShareFileDownload 处理文件下载。

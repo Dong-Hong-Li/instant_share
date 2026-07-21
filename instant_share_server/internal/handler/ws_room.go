@@ -22,6 +22,8 @@ type WSRoomHandler struct {
 	peerConns  map[string]*websocket.Connection
 	authorized map[string]bool
 	stopSweep  chan struct{}
+
+	onCatalogUpdated func()
 }
 
 // NewWSRoomHandler。
@@ -276,6 +278,11 @@ func (h *WSRoomHandler) isAuthorized(deviceID string) bool {
 	return authorized || h.room.IsAuthorizedPeer(deviceID)
 }
 
+// SetOnCatalogUpdated 注册房间目录变更回调（如触发 WSAdminHandler 广播 share.status）。
+func (h *WSRoomHandler) SetOnCatalogUpdated(fn func()) {
+	h.onCatalogUpdated = fn
+}
+
 // broadcastCatalogUpdated。
 func (h *WSRoomHandler) broadcastCatalogUpdated() {
 	catalog, revision := h.room.Catalog()
@@ -287,6 +294,9 @@ func (h *WSRoomHandler) broadcastCatalogUpdated() {
 	})
 	h.ws.BroadcastToRole(websocket.RolePeer, notice)
 	h.ws.BroadcastToRole(websocket.RoleAdmin, notice)
+	if h.onCatalogUpdated != nil {
+		h.onCatalogUpdated()
+	}
 }
 
 // broadcastPendingUpdated。
