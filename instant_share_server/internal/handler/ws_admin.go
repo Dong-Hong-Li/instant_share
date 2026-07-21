@@ -72,10 +72,15 @@ func (h *WSAdminHandler) handleShareStart(_ context.Context, conn *websocket.Con
 		return conn.WriteResponse(websocket.Error("share.start_ack", packet.RequestID, code, err.Error()))
 	}
 
-	h.broadcastShareStatus()
+	// 先同步 Host 目录（建立 Host 身份、清空可能残留的 Peer 镜像），再广播状态，避免第一次
+	// 广播时房间目录尚未写入、isRoomHost 尚为 false，导致过期的 Peer 镜像抢先出现在状态中。
 	if h.wsRoom != nil {
 		h.wsRoom.SyncHostCatalog(status)
+		if h.mirror != nil {
+			h.mirror.Clear()
+		}
 	}
+	h.broadcastShareStatus()
 	return conn.WriteResponse(websocket.Success("share.start_ack", packet.RequestID, status))
 }
 
@@ -94,9 +99,14 @@ func (h *WSAdminHandler) handleShareStop(_ context.Context, conn *websocket.Conn
 		return conn.WriteResponse(websocket.Error("share.stop_ack", packet.RequestID, code, err.Error()))
 	}
 
-	// 先关闭房间（清空 RoomService 目录），再广播状态，避免 viewer 收到已停止分享但仍带旧房间目录的状态。
+	// 先关闭房间（清空 RoomService 目录）并清空 Peer 镜像目录，再广播状态：CloseRoom 会让
+	// isRoomHost 变为 false，若不同时清空镜像，残留的旧 Peer 镜像会在此时抢先顶替空房间目录，
+	// 让 viewer 收到「已停止分享但仍带旧镜像文件、active=true」的过期状态。
 	if h.wsRoom != nil {
 		h.wsRoom.CloseRoom()
+	}
+	if h.mirror != nil {
+		h.mirror.Clear()
 	}
 	h.broadcastShareStatus()
 	return conn.WriteResponse(websocket.Success("share.stop_ack", packet.RequestID, status))
