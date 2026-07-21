@@ -8,13 +8,10 @@ class Debouncer {
   /// 是否立即执行（首次触发时立即执行，后续触发延迟）
   final bool immediate;
 
-  /// 定时器
   Timer? _timer;
 
-  /// 是否已经执行过
   bool _hasExecuted = false;
 
-  /// 是否处于等待状态
   bool get isPending => _timer?.isActive ?? false;
 
   /// 要执行的函数
@@ -58,6 +55,7 @@ class Debouncer {
     action.call();
   }
 
+  /// 释放资源。
   void dispose() {
     cancel();
   }

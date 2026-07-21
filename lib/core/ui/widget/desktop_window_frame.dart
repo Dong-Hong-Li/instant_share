@@ -15,9 +15,13 @@ class DesktopWindowFrame extends StatefulWidget {
     this.borderRadius = 12,
   });
 
+  /// 子组件。
   final Widget child;
+
+  /// borderRadius。
   final double borderRadius;
 
+  /// 创建状态对象。
   @override
   State<DesktopWindowFrame> createState() => _DesktopWindowFrameState();
 }
@@ -33,6 +37,7 @@ class _DesktopWindowFrameState extends State<DesktopWindowFrame>
   static final _isDesktop =
       !kIsWeb && (Platform.isMacOS || Platform.isWindows || Platform.isLinux);
 
+  /// 初始化状态。
   @override
   void initState() {
     if (_isDesktop) {
@@ -41,6 +46,7 @@ class _DesktopWindowFrameState extends State<DesktopWindowFrame>
     super.initState();
   }
 
+  /// 释放资源。
   @override
   void dispose() {
     if (_isDesktop) {
@@ -78,6 +84,7 @@ class _DesktopWindowFrameState extends State<DesktopWindowFrame>
     );
   }
 
+  /// 构建界面。
   @override
   Widget build(BuildContext context) {
     if (!_isDesktop) return widget.child;
@@ -103,21 +110,27 @@ class _DesktopWindowFrameState extends State<DesktopWindowFrame>
     return framed;
   }
 
+  /// onWindowFocus。
   @override
   void onWindowFocus() => setState(() => _isFocused = true);
 
+  /// onWindowBlur。
   @override
   void onWindowBlur() => setState(() => _isFocused = false);
 
+  /// onWindowMaximize。
   @override
   void onWindowMaximize() => setState(() => _isMaximized = true);
 
+  /// onWindowUnmaximize。
   @override
   void onWindowUnmaximize() => setState(() => _isMaximized = false);
 
+  /// onWindowEnterFullScreen。
   @override
   void onWindowEnterFullScreen() => setState(() => _isFullScreen = true);
 
+  /// onWindowLeaveFullScreen。
   @override
   void onWindowLeaveFullScreen() => setState(() => _isFullScreen = false);
 }

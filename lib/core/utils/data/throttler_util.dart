@@ -11,19 +11,14 @@ class Throttler {
   /// 是否在结束时执行（trailing）
   final bool trailing;
 
-  /// 定时器
   Timer? _timer;
 
-  /// 是否已经执行过
   bool _isThrottled = false;
 
-  /// 最后一次执行的回调
   void Function()? _lastAction;
 
-  /// 最后一次执行的时间
   DateTime? _lastExecuteTime;
 
-  /// 是否处于节流状态
   bool get isThrottled => _isThrottled;
 
   /// 要执行的函数
@@ -87,6 +82,7 @@ class Throttler {
     _lastExecuteTime = DateTime.now();
   }
 
+  /// 释放资源。
   void dispose() {
     cancel();
   }

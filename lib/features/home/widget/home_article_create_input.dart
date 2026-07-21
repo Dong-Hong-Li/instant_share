@@ -20,13 +20,25 @@ class HomeArticleCreateInput extends StatelessWidget {
     required this.onSubmit,
   });
 
+  /// 颜色配置。
   final ColorValue colorValue;
+
+  /// title控制器。
   final TextEditingController titleController;
+
+  /// content控制器。
   final TextEditingController contentController;
+
+  /// contentFocusNode。
   final FocusNode contentFocusNode;
+
+  /// contentScroll控制器。
   final ScrollController contentScrollController;
+
+  /// onSubmit。
   final VoidCallback onSubmit;
 
+  /// 构建界面。
   @override
   Widget build(BuildContext context) {
     final iconColor = colorValue.homeUploadIconColor;

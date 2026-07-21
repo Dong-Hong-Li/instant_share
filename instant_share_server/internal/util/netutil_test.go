@@ -5,6 +5,7 @@ import (
 	"testing"
 )
 
+// TestLanIPPriority。
 func TestLanIPPriority(t *testing.T) {
 	tests := []struct {
 		ip       string
@@ -24,6 +25,7 @@ func TestLanIPPriority(t *testing.T) {
 	}
 }
 
+// TestPickBestCandidatePrefersReal192OverVirtual172。
 func TestPickBestCandidatePrefersReal192OverVirtual172(t *testing.T) {
 	candidates := []ipCandidate{
 		{ip: net.ParseIP("172.22.128.1").To4(), priority: 2, virtual: true},
@@ -36,6 +38,7 @@ func TestPickBestCandidatePrefersReal192OverVirtual172(t *testing.T) {
 	}
 }
 
+// TestPickBestCandidatePrefers192Over172OnSameClass。
 func TestPickBestCandidatePrefers192Over172OnSameClass(t *testing.T) {
 	candidates := []ipCandidate{
 		{ip: net.ParseIP("172.16.0.2").To4(), priority: 2, virtual: false},
@@ -48,6 +51,7 @@ func TestPickBestCandidatePrefers192Over172OnSameClass(t *testing.T) {
 	}
 }
 
+// TestLocalIPsOrdersPrimaryFirst。
 func TestLocalIPsOrdersPrimaryFirst(t *testing.T) {
 	candidates := []ipCandidate{
 		{ip: net.ParseIP("10.0.0.5").To4(), priority: 1, virtual: false},
@@ -60,6 +64,7 @@ func TestLocalIPsOrdersPrimaryFirst(t *testing.T) {
 	}
 }
 
+// TestLocalIPsDedupesAndSkipsVirtualPrivate。
 func TestLocalIPsDedupesAndSkipsVirtualPrivate(t *testing.T) {
 	candidates := []ipCandidate{
 		{ip: net.ParseIP("192.168.1.10").To4(), priority: 0, virtual: false},
@@ -71,10 +76,12 @@ func TestLocalIPsDedupesAndSkipsVirtualPrivate(t *testing.T) {
 	primary := primaryLocalIPFromCandidates(candidates)
 	seen := map[string]struct{}{primary: {}}
 
+	// scoredIP。
 	type scoredIP struct {
 		ip       string
 		priority int
 	}
+	// rest。
 	var rest []scoredIP
 	for _, candidate := range candidates {
 		if candidate.virtual || !isPrivateIPv4(candidate.ip) {
@@ -92,6 +99,7 @@ func TestLocalIPsDedupesAndSkipsVirtualPrivate(t *testing.T) {
 	}
 }
 
+// TestIsVirtualInterface。
 func TestIsVirtualInterface(t *testing.T) {
 	tests := []struct {
 		name    string

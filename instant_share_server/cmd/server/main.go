@@ -11,6 +11,7 @@ import (
 	"instant_share/server/internal/runtime"
 )
 
+// main 程序入口。
 func main() {
 	cfg := config.Load()
 

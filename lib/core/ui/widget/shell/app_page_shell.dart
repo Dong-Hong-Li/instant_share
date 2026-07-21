@@ -14,12 +14,22 @@ class AppPageShell extends StatelessWidget {
     this.maxContentWidth = 430,
   });
 
+  /// activeIndex。
   final int activeIndex;
+
+  /// onTabSelected。
   final ValueChanged<int> onTabSelected;
+
+  /// tabItems。
   final List<TabNavItem> tabItems;
+
+  /// pages。
   final List<Widget> pages;
+
+  /// maxContentWidth。
   final double maxContentWidth;
 
+  /// 构建界面。
   @override
   Widget build(BuildContext context) {
     assert(tabItems.length == pages.length, 'tabItems 与 pages 长度须一致');

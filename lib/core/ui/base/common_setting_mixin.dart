@@ -10,10 +10,10 @@ export 'package:instant_share/resource/screen_utils/layout_dimens_w.dart';
 export 'package:instant_share/resource/screen_utils/layout_dimens_h.dart';
 export 'package:instant_share/resource/screen_utils/layout_dimens_s.dart';
 
+/// Common混入。
 mixin CommonMixin {
   BuildContext? _context;
 
-  /// 页面 [BuildContext]（在 [initBaseCommon] 写入后方可安全使用）。
   BuildContext get ctx => _context!;
 
   /// 系统导航栏样式
@@ -28,6 +28,7 @@ mixin CommonMixin {
   /// 本地化。
   LocalizationsSdk get l10n => ctx.l10n;
 
+  /// initBaseCommon。
   @protected
   void initBaseCommon(BuildContext context) {
     _context = context;

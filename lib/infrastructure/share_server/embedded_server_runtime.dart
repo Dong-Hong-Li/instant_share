@@ -19,6 +19,7 @@ typedef _StopServerDart = void Function();
 class EmbeddedServerRuntime implements ShareServerRuntime {
   EmbeddedServerRuntime._();
 
+  /// 单例实例。
   static final EmbeddedServerRuntime instance = EmbeddedServerRuntime._();
 
   _StartServerDart? _start;
@@ -28,12 +29,17 @@ class EmbeddedServerRuntime implements ShareServerRuntime {
   int? _port;
   Future<void>? _startFuture;
 
+  /// isStarted。
   @override
+  /// 是否已启动。
   bool get isStarted => _started;
 
+  /// 端口。
   @override
+  /// 端口。
   int? get port => _port;
 
+  /// ensureStarted。
   @override
   Future<void> ensureStarted() {
     if (_started) return Future.value();
@@ -67,6 +73,7 @@ class EmbeddedServerRuntime implements ShareServerRuntime {
     _stop = lib.lookupFunction<_StopServerC, _StopServerDart>('StopServer');
   }
 
+  /// stop。
   @override
   Future<void> stop() async {
     final stop = _stop;
@@ -79,6 +86,7 @@ class EmbeddedServerRuntime implements ShareServerRuntime {
     debugPrint('[ShareServer] 进程内服务已停止');
   }
 
+  /// restartListening。
   @override
   Future<void> restartListening() async {
     await stop();

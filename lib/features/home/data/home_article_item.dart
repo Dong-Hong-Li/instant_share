@@ -7,11 +7,19 @@ class HomeArticleItem {
     required this.createdAtMs,
   });
 
+  /// ID。
   final String id;
+
+  /// 标题。
   final String title;
+
+  /// 内容。
   final String content;
+
+  /// 创建时间戳。
   final int createdAtMs;
 
+  /// 展示标题。
   String get displayTitle {
     final trimmed = title.trim();
     if (trimmed.isNotEmpty) return trimmed;
@@ -20,12 +28,14 @@ class HomeArticleItem {
     return body.length <= 12 ? body : '${body.substring(0, 12)}…';
   }
 
+  /// 正文预览。
   String get bodyPreview {
     final body = content.trim();
     if (body.isEmpty) return '（空正文）';
     return body.length <= 48 ? body : '${body.substring(0, 48)}…';
   }
 
+  /// 字符数量。
   int get charCount => content.trim().length;
 
   Map<String, dynamic> toJson() => {

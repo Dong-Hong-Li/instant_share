@@ -17,6 +17,7 @@ abstract final class HomeArticleInputShortcuts {
     return keyboard.isControlPressed;
   }
 
+  /// contentHint文本。
   static String get contentHintText {
     if (Platform.isMacOS) {
       return '输入文章内容，回车创建，Shift/⌘+回车换行';
@@ -27,8 +28,10 @@ abstract final class HomeArticleInputShortcuts {
 
 /// 多行输入框滚动辅助（程序插入换行后同步视口）。
 abstract final class HomeArticleInputScroll {
+  /// lineHeight。
   static double get lineHeight => f14 * 1.5;
 
+  /// scrollToCaret。
   static void scrollToCaret({
     required TextEditingController controller,
     required ScrollController scrollController,
@@ -67,6 +70,7 @@ abstract final class HomeArticleInputScroll {
 class HomeArticleInputScrollBehavior extends ScrollBehavior {
   const HomeArticleInputScrollBehavior();
 
+  /// buildScrollbar。
   @override
   Widget buildScrollbar(
     BuildContext context,
@@ -76,6 +80,7 @@ class HomeArticleInputScrollBehavior extends ScrollBehavior {
     return child;
   }
 
+  /// getScrollPhysics。
   @override
   ScrollPhysics getScrollPhysics(BuildContext context) {
     return const ClampingScrollPhysics();

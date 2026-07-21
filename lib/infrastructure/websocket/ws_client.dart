@@ -8,11 +8,7 @@ import 'package:uuid/uuid.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 
 /// WebSocket 连接状态。
-enum WsClientState {
-  disconnected,
-  connected,
-  authenticated,
-}
+enum WsClientState { disconnected, connected, authenticated }
 
 /// 客户端配置。
 class WsClientConfig {
@@ -21,7 +17,10 @@ class WsClientConfig {
     this.requestTimeout = const Duration(seconds: 30),
   });
 
+  /// 连接超时。
   final Duration connectTimeout;
+
+  /// 请求超时。
   final Duration requestTimeout;
 }
 
@@ -29,6 +28,7 @@ class WsClientConfig {
 class WsClient {
   WsClient({this.config = const WsClientConfig()});
 
+  /// 配置。
   final WsClientConfig config;
   static const _uuid = Uuid();
 
@@ -40,10 +40,13 @@ class WsClient {
   Completer<WsResponse>? _authCompleter;
   WsClientState _state = WsClientState.disconnected;
 
+  /// 连接状态。
   WsClientState get state => _state;
 
+  /// 入站消息流。
   Stream<WsIncomingMessage> get incoming => _incomingController.stream;
 
+  /// 是否已认证。
   bool get isAuthenticated => _state == WsClientState.authenticated;
 
   /// 建立 WebSocket 连接（尚未鉴权）。
@@ -100,9 +103,7 @@ class WsClient {
     _pending[id] = completer;
 
     _sink.add(
-      jsonEncode(
-        WsPacket(type: type, requestId: id, data: data).toJson(),
-      ),
+      jsonEncode(WsPacket(type: type, requestId: id, data: data).toJson()),
     );
 
     try {
@@ -125,6 +126,7 @@ class WsClient {
     _sink.add(jsonEncode(packet.toJson()));
   }
 
+  /// close。
   Future<void> close() async {
     _failPending(const WsException(message: 'connection closed'));
     _authCompleter?.completeError(

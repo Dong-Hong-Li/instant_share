@@ -23,6 +23,7 @@ func NewAPIHandler(share *service.ShareService, cfg config.Config) *APIHandler {
 	return &APIHandler{share: share, config: cfg}
 }
 
+// Health 返回服务健康状态。
 func (h *APIHandler) Health(w http.ResponseWriter, _ *http.Request) {
 	writeJSON(w, http.StatusOK, model.APIResponse{
 		OK:   true,
@@ -57,6 +58,7 @@ func (h *APIHandler) ServerHealth(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// Status 返回分享状态。
 func (h *APIHandler) Status(w http.ResponseWriter, _ *http.Request) {
 	writeJSON(w, http.StatusOK, model.APIResponse{
 		OK:   true,
@@ -64,12 +66,14 @@ func (h *APIHandler) Status(w http.ResponseWriter, _ *http.Request) {
 	})
 }
 
+// StartShare 开始分享。
 func (h *APIHandler) StartShare(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		methodNotAllowed(w)
 		return
 	}
 
+	// req。
 	var req model.StartShareRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid request body")
@@ -88,6 +92,7 @@ func (h *APIHandler) StartShare(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// StopShare 停止分享。
 func (h *APIHandler) StopShare(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		methodNotAllowed(w)
@@ -106,6 +111,7 @@ func (h *APIHandler) StopShare(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// writeShareError 写入分享错误。
 func writeShareError(w http.ResponseWriter, err error) {
 	switch {
 	case errors.Is(err, service.ErrShareActive):
@@ -119,6 +125,7 @@ func writeShareError(w http.ResponseWriter, err error) {
 	}
 }
 
+// writeError 写入错误响应。
 func writeError(w http.ResponseWriter, status int, message string) {
 	writeJSON(w, status, model.APIResponse{
 		OK:      false,
@@ -126,12 +133,14 @@ func writeError(w http.ResponseWriter, status int, message string) {
 	})
 }
 
+// writeJSON 写入 JSON 响应。
 func writeJSON(w http.ResponseWriter, status int, payload model.APIResponse) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(status)
 	_ = json.NewEncoder(w).Encode(payload)
 }
 
+// methodNotAllowed 返回方法不允许。
 func methodNotAllowed(w http.ResponseWriter) {
 	writeError(w, http.StatusMethodNotAllowed, "method not allowed")
 }

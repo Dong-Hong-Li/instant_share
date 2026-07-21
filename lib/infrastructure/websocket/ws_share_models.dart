@@ -1,3 +1,4 @@
+/// 分享文件数据。
 class ShareFileDto {
   const ShareFileDto({
     required this.id,
@@ -6,9 +7,16 @@ class ShareFileDto {
     required this.size,
   });
 
+  /// ID。
   final String id;
+
+  /// 路径。
   final String path;
+
+  /// 名称。
   final String name;
+
+  /// 大小。
   final int size;
 
   Map<String, dynamic> toJson() => {
@@ -28,6 +36,7 @@ class ShareFileDto {
   }
 }
 
+/// 分享文章数据。
 class ShareArticleDto {
   const ShareArticleDto({
     required this.id,
@@ -35,8 +44,13 @@ class ShareArticleDto {
     required this.content,
   });
 
+  /// ID。
   final String id;
+
+  /// 标题。
   final String title;
+
+  /// 内容。
   final String content;
 
   Map<String, dynamic> toJson() => {
@@ -54,6 +68,7 @@ class ShareArticleDto {
   }
 }
 
+/// 分享Status数据。
 class ShareStatusDto {
   const ShareStatusDto({
     required this.active,
@@ -66,13 +81,28 @@ class ShareStatusDto {
     this.startedAt,
   });
 
+  /// 是否激活。
   final bool active;
+
+  /// sessionId。
   final String? sessionId;
+
+  /// 基础地址。
   final String? baseUrl;
+
+  /// ip。
   final String? ip;
+
+  /// 端口。
   final int? port;
+
+  /// 启动时间。
   final DateTime? startedAt;
+
+  /// 文件列表。
   final List<ShareFileDto> files;
+
+  /// 文章列表。
   final List<ShareArticleDto> articles;
 
   factory ShareStatusDto.fromJson(Map<String, dynamic> json) {
@@ -122,9 +152,11 @@ class ShareStatusDto {
   }
 }
 
+/// Sync文章请求数据。
 class SyncArticleRequestDto {
   const SyncArticleRequestDto({required this.articles});
 
+  /// 文章列表。
   final List<ShareArticleDto> articles;
 
   Map<String, dynamic> toJson() => {
@@ -132,10 +164,14 @@ class SyncArticleRequestDto {
   };
 }
 
+/// Start分享请求数据。
 class StartShareRequestDto {
   const StartShareRequestDto({required this.files, this.port});
 
+  /// 文件列表。
   final List<ShareFileDto> files;
+
+  /// 端口。
   final int? port;
 
   Map<String, dynamic> toJson() => {
@@ -144,14 +180,17 @@ class StartShareRequestDto {
   };
 }
 
+/// 文件Download请求数据。
 class FileDownloadRequestDto {
   const FileDownloadRequestDto({required this.fileId});
 
+  /// fileId。
   final String fileId;
 
   Map<String, dynamic> toJson() => {'file_id': fileId};
 }
 
+/// 文件DownloadStart数据。
 class FileDownloadStartDto {
   const FileDownloadStartDto({
     required this.fileId,
@@ -159,8 +198,13 @@ class FileDownloadStartDto {
     required this.size,
   });
 
+  /// fileId。
   final String fileId;
+
+  /// 名称。
   final String name;
+
+  /// 大小。
   final int size;
 
   factory FileDownloadStartDto.fromJson(Map<String, dynamic> json) {

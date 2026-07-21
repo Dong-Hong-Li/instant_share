@@ -14,15 +14,35 @@ class ShareServerHealthDto {
     required this.share,
   });
 
+  /// service。
   final String service;
+
+  /// healthy。
   final bool healthy;
+
+  /// 端口。
   final int port;
+
+  /// lanIp。
   final String lanIp;
+
+  /// localIps。
   final List<String> localIps;
+
+  /// httpBase。
   final String httpBase;
+
+  /// ws地址。
   final String wsUrl;
+
+  /// share地址。
   final String shareUrl;
+
+  /// share。
   final ShareStatusDto share;
+
+  /// 局域网可达的 HTTP 根地址（供 peer_base_url / 跨设备下载，非 127.0.0.1）。
+  Uri get lanHttpBaseUri => Uri(scheme: 'http', host: lanIp, port: port);
 
   /// 除主分享地址外的备选局域网地址（2 个及以上 IP 时才有值）。
   List<String> get alternateShareUrls {

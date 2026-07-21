@@ -7,6 +7,7 @@ import (
 	"strings"
 )
 
+// ipCandidate。
 type ipCandidate struct {
 	ip       net.IP
 	priority int
@@ -37,10 +38,12 @@ func LocalIPs() []string {
 	seen := map[string]struct{}{primary: {}}
 	ips := []string{primary}
 
+	// scoredIP。
 	type scoredIP struct {
 		ip       string
 		priority int
 	}
+	// rest。
 	var rest []scoredIP
 	for _, candidate := range candidates {
 		if candidate.virtual || !isPrivateIPv4(candidate.ip) {
@@ -67,12 +70,14 @@ func LocalIPs() []string {
 	return ips
 }
 
+// collectIPCandidates。
 func collectIPCandidates() []ipCandidate {
 	ifaces, err := net.Interfaces()
 	if err != nil {
 		return nil
 	}
 
+	// candidates。
 	var candidates []ipCandidate
 	for _, iface := range ifaces {
 		if iface.Flags&net.FlagUp == 0 || iface.Flags&net.FlagLoopback != 0 {
@@ -105,6 +110,7 @@ func collectIPCandidates() []ipCandidate {
 	return candidates
 }
 
+// primaryLocalIPFromCandidates。
 func primaryLocalIPFromCandidates(candidates []ipCandidate) string {
 	if ip := pickBestCandidate(candidates, false, true); ip != nil {
 		return ip.String()
@@ -118,7 +124,9 @@ func primaryLocalIPFromCandidates(candidates []ipCandidate) string {
 	return candidates[0].ip.String()
 }
 
+// pickBestCandidate。
 func pickBestCandidate(candidates []ipCandidate, includeVirtual, privateOnly bool) net.IP {
+	// best。
 	var best *ipCandidate
 	for i := range candidates {
 		c := &candidates[i]
@@ -138,10 +146,12 @@ func pickBestCandidate(candidates []ipCandidate, includeVirtual, privateOnly boo
 	return best.ip
 }
 
+// isLinkLocalIPv4。
 func isLinkLocalIPv4(ip net.IP) bool {
 	return ip[0] == 169 && ip[1] == 254
 }
 
+// isPrivateIPv4。
 func isPrivateIPv4(ip net.IP) bool {
 	switch {
 	case ip[0] == 10:
@@ -169,6 +179,7 @@ func lanIPPriority(ip net.IP) int {
 	}
 }
 
+// isVirtualInterface。
 func isVirtualInterface(name string) bool {
 	lower := strings.ToLower(name)
 	patterns := []string{
@@ -200,6 +211,7 @@ func isVirtualInterface(name string) bool {
 
 // FormatSize 格式化文件大小。
 func FormatSize(size int64) string {
+	// unit。
 	const unit = 1024
 	if size < unit {
 		return fmt.Sprintf("%d B", size)

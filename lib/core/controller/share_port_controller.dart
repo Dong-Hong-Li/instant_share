@@ -10,11 +10,13 @@ class SharePortController extends AppController {
   int _focusPortRequestId = 0;
   bool _navigateToSettings = false;
 
+  /// 是否使用自定义端口。
   bool get useCustomPort => _useCustomPort;
 
+  /// 自定义端口。
   int? get customPort => _customPort;
 
-  /// 递增后设置页应聚焦端口输入框。
+  /// 聚焦端口请求 ID。
   int get focusPortRequestId => _focusPortRequestId;
 
   /// 冷启动应绑定的监听端口；非自定义或非法时返回 null（调用方用系统分配）。
@@ -25,6 +27,7 @@ class SharePortController extends AppController {
     return port;
   }
 
+  /// 初始化控制器。
   @override
   void onInit() {
     super.onInit();
@@ -70,18 +73,21 @@ class SharePortController extends AppController {
     return saveCustomPort(port);
   }
 
+  /// 请求跳转到端口设置。
   void requestNavigateToPortSettings() {
     _navigateToSettings = true;
     _focusPortRequestId++;
     update();
   }
 
+  /// 消费端口设置跳转请求。
   bool consumeNavigateToSettings() {
     if (!_navigateToSettings) return false;
     _navigateToSettings = false;
     return true;
   }
 
+  /// 请求聚焦端口输入框。
   void requestFocusPortField() {
     _focusPortRequestId++;
     update();

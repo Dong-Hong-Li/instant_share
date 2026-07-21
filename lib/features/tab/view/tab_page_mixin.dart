@@ -5,12 +5,14 @@ mixin TabPagePcMixin on BaseStatePage<TabPage> {
   TabSidebarItem tab = TabSidebarItem.home;
   bool _handlingPortOccupied = false;
 
+  /// syncTab。
   void syncTab(HomeProvider home) {
     if (!home.isSharing && tab == TabSidebarItem.links) {
       setState(() => tab = TabSidebarItem.home);
     }
   }
 
+  /// maybeHandlePortOccupied。
   void maybeHandlePortOccupied(BuildContext context, HomeProvider home) {
     if (!home.portOccupiedNeedsSettings || _handlingPortOccupied) return;
 
@@ -34,12 +36,14 @@ mixin TabPagePcMixin on BaseStatePage<TabPage> {
     });
   }
 
+  /// buildTabGradientShell。
   Widget buildTabGradientShell({
     required HomeProvider home,
+    required bool joinedRoom,
     required Widget child,
   }) {
     return TweenAnimationBuilder<double>(
-      tween: Tween(end: home.isSharing ? 1.0 : 0.0),
+      tween: Tween(end: home.isSharing || joinedRoom ? 1.0 : 0.0),
       duration: const Duration(milliseconds: 450),
       curve: Curves.easeInOut,
       builder: (context, progress, gradientChild) {
@@ -54,11 +58,18 @@ mixin TabPagePcMixin on BaseStatePage<TabPage> {
     );
   }
 
-  Widget buildTabBody(ColorValue colorValue, HomeProvider home, double topInset) {
+  /// buildTabBody。
+  Widget buildTabBody(
+    ColorValue colorValue,
+    HomeProvider home,
+    double topInset,
+  ) {
+    final mutual = ref.watch(mutualShareProvider);
     return switch (tab) {
       TabSidebarItem.home => HomeSharePage(
         colorValue: colorValue,
         provider: home,
+        mutual: mutual,
         topInset: topInset,
       ),
       TabSidebarItem.settings => SettingPage(
@@ -66,10 +77,11 @@ mixin TabPagePcMixin on BaseStatePage<TabPage> {
         isSharing: home.isSharing,
       ),
       TabSidebarItem.config => ConfigPage(colorValue: colorValue),
-      TabSidebarItem.links => LinkPage(colorValue: colorValue),
+      TabSidebarItem.links => LinkPage(colorValue: colorValue, mutual: mutual),
     };
   }
 
+  /// buildTabSidebarLayout。
   Widget buildTabSidebarLayout({
     required ColorValue colorValue,
     required HomeProvider home,
@@ -123,6 +135,7 @@ mixin TabPagePcMixin on BaseStatePage<TabPage> {
 
     return buildTabGradientShell(
       home: home,
+      joinedRoom: ref.watch(mutualShareProvider).joinedRoom,
       child: SizedBox.expand(child: content),
     );
   }

@@ -2,8 +2,10 @@
 class LanIpUnavailableException implements Exception {
   const LanIpUnavailableException({required this.message});
 
+  /// 消息。
   final String message;
 
+  /// 转为调试文本。
   @override
   String toString() => 'LanIpUnavailableException: $message';
 }

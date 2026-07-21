@@ -5,9 +5,16 @@ import 'package:instant_share/infrastructure/websocket/ws_exception.dart';
 class WsAuthRequest {
   const WsAuthRequest({required this.role, required this.deviceId});
 
+  /// WSAuth请求。
   const WsAuthRequest.admin({required this.deviceId}) : role = WsRole.admin;
 
+  /// WSAuth请求。
+  const WsAuthRequest.peer({required this.deviceId}) : role = WsRole.peer;
+
+  /// 角色。
   final String role;
+
+  /// 设备 ID。
   final String deviceId;
 
   Map<String, dynamic> toJson() => {
@@ -21,8 +28,13 @@ class WsAuthRequest {
 class WsPacket {
   const WsPacket({required this.type, this.requestId, this.data});
 
+  /// 类型。
   final String type;
+
+  /// 请求 ID。
   final String? requestId;
+
+  /// 数据。
   final Object? data;
 
   Map<String, dynamic> toJson() => {
@@ -52,14 +64,25 @@ class WsResponse {
     );
   }
 
+  /// 类型。
   final String type;
+
+  /// 请求 ID。
   final String? requestId;
+
+  /// 状态码。
   final int code;
+
+  /// 消息。
   final String message;
+
+  /// 数据。
   final dynamic data;
 
+  /// 是否成功。
   bool get isSuccess => code == WsCode.success;
 
+  /// 确保响应成功。
   void ensureSuccess() {
     if (isSuccess) return;
     throw WsException(
@@ -74,14 +97,18 @@ class WsResponse {
 /// 入站消息：JSON 响应或二进制分片。
 sealed class WsIncomingMessage {}
 
+/// WS JSON 消息。
 class WsJsonMessage extends WsIncomingMessage {
   WsJsonMessage(this.response);
 
+  /// 响应数据。
   final WsResponse response;
 }
 
+/// WS 二进制消息。
 class WsBinaryMessage extends WsIncomingMessage {
   WsBinaryMessage(this.bytes);
 
+  /// 字节数据。
   final List<int> bytes;
 }

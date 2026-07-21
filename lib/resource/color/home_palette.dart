@@ -4,9 +4,14 @@ import 'package:flutter/material.dart';
 abstract final class HomePalette {
   /// 上亮下暗、整体偏亮的冷灰渐变（贴近 EZ Share）
   static const Color gradientTop = Color(0xFFA8B0BC);
+
+  /// gradientMiddle。
   static const Color gradientMiddle = Color(0xFF868F9C);
+
+  /// gradientBottom。
   static const Color gradientBottom = Color(0xFF5A6370);
 
+  /// backgroundGradient。
   static const LinearGradient backgroundGradient = LinearGradient(
     begin: Alignment.topCenter,
     end: Alignment.bottomCenter,
@@ -16,12 +21,17 @@ abstract final class HomePalette {
 
   /// 分享中（天青 / 青蓝系）：上天青 → 下淡青蓝
   static const Color sharingGradientTop = Color(0xFF52AEE6);
+
+  /// sharingGradientMiddle。
   static const Color sharingGradientMiddle = Color(0xFF7EC4EF);
+
+  /// sharingGradientBottom。
   static const Color sharingGradientBottom = Color(0xFFC2E4F8);
 
   /// 分享态辅助文字（浅青白，预留）。
   static const Color sharingSecondaryText = Color(0xFFE8F4FC);
 
+  /// sharingBackgroundGradient。
   static const LinearGradient sharingBackgroundGradient = LinearGradient(
     begin: Alignment.topCenter,
     end: Alignment.bottomCenter,
@@ -44,9 +54,16 @@ abstract final class HomePalette {
     );
   }
 
+  /// 标题。
   static const Color title = Color(0xFFFFFFFF);
+
+  /// hint。
   static const Color hint = Color(0xE6FFFFFF);
+
+  /// upload按钮Fill。
   static const Color uploadButtonFill = Color(0xFFFFFFFF);
+
+  /// uploadIcon。
   static const Color uploadIcon = Color(0xFF4A5260);
 
   // ---- 中央开关按钮：灰（待开启）→ 绿（已开启） ----
@@ -67,6 +84,8 @@ abstract final class HomePalette {
 
   /// 开关图标：待开启（深）/ 已开启（白）
   static const Color switchIconOff = Color(0xFF4A5260);
+
+  /// switchIconOn。
   static const Color switchIconOn = Color(0xFFFFFFFF);
 
   /// 分享中状态/倒计时等前景色。
@@ -122,6 +141,9 @@ abstract final class HomePalette {
     colors: [Color(0xFFE6EEFC), Color(0xFFC8D8F5)],
   );
 
+  /// articleSelectedBorder。
   static const Color articleSelectedBorder = Color(0xFF6B93E0);
+
+  /// articleSelectedForeground。
   static const Color articleSelectedForeground = Color(0xFF2E4A82);
 }

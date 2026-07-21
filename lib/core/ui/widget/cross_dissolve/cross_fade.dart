@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:instant_share/core/ui/widget/cross_dissolve/expand_able_controller.dart';
 
+/// 交叉淡入淡出组件。
 class CrossFade extends StatelessWidget {
   /// 折叠状态下显示的组件
   final Widget? collapsed;
@@ -43,6 +44,7 @@ class CrossFade extends StatelessWidget {
     this.sizeCurve = Curves.fastOutSlowIn,
   });
 
+  /// 构建界面。
   @override
   Widget build(BuildContext context) {
     final ExpandAbleController controller = ExpandAbleController.of(context);

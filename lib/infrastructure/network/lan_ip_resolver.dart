@@ -15,6 +15,7 @@ abstract class LanIpResolver {
 class NoOpLanIpResolver extends LanIpResolver {
   const NoOpLanIpResolver();
 
+  /// 获取局域网 IP。
   @override
   Future<List<String>> getLanIps() async => const [];
 }
@@ -25,6 +26,7 @@ class AndroidLanIpResolver extends LanIpResolver {
 
   static const _channel = MethodChannel('com.example.instant_share/network');
 
+  /// 获取局域网 IP。
   @override
   Future<List<String>> getLanIps() async {
     try {
@@ -40,6 +42,7 @@ class AndroidLanIpResolver extends LanIpResolver {
   }
 }
 
+/// 创建局域网 IP 解析器。
 LanIpResolver createLanIpResolver() {
   if (!Platform.isAndroid) return const NoOpLanIpResolver();
   return AndroidLanIpResolver();

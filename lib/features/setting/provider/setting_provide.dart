@@ -9,12 +9,7 @@ import 'package:instant_share/infrastructure/share_server/share_server_host.dart
 import 'package:state_scope/state_scope.dart';
 
 /// 保存 / 重绑操作结果，由 UI 层决定是否弹 SnackBar。
-enum SettingPortApplyResult {
-  noop,
-  saved,
-  rebindOk,
-  rebindFailed,
-}
+enum SettingPortApplyResult { noop, saved, rebindOk, rebindFailed }
 
 /// 设置页 UI 状态与编排（全局端口配置仍由 [SharePortController] 持有）。
 class SettingProvider extends ChangeNotifier {
@@ -27,6 +22,7 @@ class SettingProvider extends ChangeNotifier {
   }
 
   final Ref _ref;
+
   late final SharePortController _portController;
 
   bool _expanded = false;
@@ -40,35 +36,44 @@ class SettingProvider extends ChangeNotifier {
   int _lastFocusRequestId = 0;
   int _focusTick = 0;
 
+  /// 是否展开。
   bool get expanded => _expanded;
 
   String get draftPortText => _draftPortText;
 
+  /// 输入框错误。
   String? get fieldError => _fieldError;
 
+  /// 检测消息。
   String? get checkMessage => _checkMessage;
 
+  /// 检测是否通过。
   bool get checkOk => _checkOk;
 
+  /// 是否正在检测。
   bool get checking => _checking;
 
+  /// 是否正在重绑端口。
   bool get rebinding => _rebinding;
 
-  /// 递增后设置页应聚焦端口输入框。
   int get focusTick => _focusTick;
 
+  /// isDirty。
   bool get isDirty {
     final current = _draftPortText.trim();
     final saved = _portController.customPort?.toString() ?? '';
     return current != saved;
   }
 
+  /// isEnabled。
   bool isEnabled(bool isSharing) => !isSharing && !_rebinding;
 
+  /// setPortFieldFocused。
   void setPortFieldFocused(bool focused) {
     _portFieldFocused = focused;
   }
 
+  /// onDraftChanged。
   void onDraftChanged(String value) {
     if (_draftPortText == value) return;
     _draftPortText = value;
@@ -76,6 +81,7 @@ class SettingProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// onToggle。
   Future<SettingPortApplyResult> onToggle({
     required bool enabled,
     required bool isSharing,
@@ -108,6 +114,7 @@ class SettingProvider extends ChangeNotifier {
     return SettingPortApplyResult.noop;
   }
 
+  /// savePort。
   Future<SettingPortApplyResult> savePort({required bool isSharing}) async {
     if (!isEnabled(isSharing)) return SettingPortApplyResult.noop;
 
@@ -135,6 +142,7 @@ class SettingProvider extends ChangeNotifier {
     return _persistAndRebind(() => _portController.saveCustomPort(port));
   }
 
+  /// checkPort。
   Future<void> checkPort({required bool isSharing}) async {
     if (!isEnabled(isSharing) || _checking) return;
 
@@ -204,6 +212,7 @@ class SettingProvider extends ChangeNotifier {
     }
   }
 
+  /// 释放资源。
   @override
   void dispose() {
     _portController.removeListener(_onPortControllerChanged);
@@ -211,7 +220,9 @@ class SettingProvider extends ChangeNotifier {
   }
 }
 
+/// setting状态。
 final settingProvider = ChangeNotifierProvider<SettingProvider>((ref) {
+  /// 状态提供者。
   final provider = SettingProvider(ref);
   ref.onDispose(provider.dispose);
   return provider;

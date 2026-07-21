@@ -12,20 +12,30 @@ class DesktopWindowConfig {
 
   /// 与 ScreenUtilInit designSize 保持一致（横向桌面布局）
   static final double designWidth = ScreenDesignConfig.desktopDesignSize.width;
+
+  /// 设计高度。
   static final double designHeight =
       ScreenDesignConfig.desktopDesignSize.height;
+
+  /// 设计宽高比。
   static final double designAspectRatio = designWidth / designHeight;
 
   /// 窗口高度占主屏高度比例
   static const double heightRatio = 0.68;
+
+  /// 最小窗口高度。
   static const double minHeight = 580;
+
+  /// 最大窗口高度。
   static const double maxHeight = 760;
 
+  /// 窗口标题。
   static const String windowTitle = '极速分享';
 
   /// 窗口外框圆角（与 macOS 视觉对齐）
   static const double windowBorderRadius = 12;
 
+  /// 是否桌面端。
   static bool get isDesktop =>
       !kIsWeb && (Platform.isMacOS || Platform.isWindows || Platform.isLinux);
 
@@ -54,6 +64,7 @@ class DesktopWindowConfig {
   /// 写入原生窗口的标题。Windows / Linux 自定义标题栏下留空，避免左上角重复显示文案。
   static String get nativeWindowTitle => useWindowCaption ? '' : windowTitle;
 
+  /// 初始化桌面窗口。
   static Future<void> ensureInitialized() async {
     if (!isDesktop) return;
 

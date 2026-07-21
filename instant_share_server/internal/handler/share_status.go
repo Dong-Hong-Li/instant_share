@@ -7,6 +7,7 @@ import (
 	"instant_share/server/internal/util"
 )
 
+// toPublicShareStatus 转换为公开分享状态。
 func toPublicShareStatus(status model.ShareStatus) model.PublicShareStatus {
 	files := make([]model.PublicShareFile, 0, len(status.Files))
 	for _, file := range status.Files {

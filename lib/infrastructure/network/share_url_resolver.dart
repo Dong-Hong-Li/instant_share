@@ -13,7 +13,10 @@ class ResolvedShareUrls {
     this.alternateUrls = const [],
   });
 
+  /// primary地址。
   final String primaryUrl;
+
+  /// 备用地址列表。
   final List<String> alternateUrls;
 }
 
@@ -27,6 +30,7 @@ class ShareUrlResolver {
 
   final LanIpResolver _lanIpResolver;
 
+  /// 从健康状态解析地址。
   Future<ResolvedShareUrls> resolveFromHealth(ShareServerHealthDto health) {
     return resolve(
       port: health.port,
@@ -36,6 +40,7 @@ class ShareUrlResolver {
     );
   }
 
+  /// 从分享状态解析地址。
   Future<ResolvedShareUrls> resolveFromStatus(ShareStatusDto status) {
     final port = status.port;
     if (port == null || port <= 0) {
@@ -49,6 +54,7 @@ class ShareUrlResolver {
     );
   }
 
+  /// 解析分享地址。
   Future<ResolvedShareUrls> resolve({
     required int port,
     String? goShareUrl,
@@ -73,9 +79,7 @@ class ShareUrlResolver {
   Future<ResolvedShareUrls> _resolveAndroid({required int port}) async {
     final ips = await _lanIpResolver.getLanIps();
     if (ips.isEmpty) {
-      throw const LanIpUnavailableException(
-        message: '无法获取局域网 IP，请连接 WiFi 后重试',
-      );
+      throw const LanIpUnavailableException(message: '无法获取局域网 IP，请连接 WiFi 后重试');
     }
 
     final primary = ips.first;
@@ -112,9 +116,7 @@ class ShareUrlResolver {
 
     final ips = _usableGoIps(goLanIp: goLanIp, goLocalIps: goLocalIps);
     if (ips.isEmpty) {
-      throw const ShareServerException(
-        message: 'Go 服务未返回可用的局域网分享地址',
-      );
+      throw const ShareServerException(message: 'Go 服务未返回可用的局域网分享地址');
     }
 
     final primary = ips.first;
@@ -134,7 +136,10 @@ class ShareUrlResolver {
   }) {
     final ips = _usableGoIps(goLanIp: primaryIp, goLocalIps: localIps);
     if (ips.length <= 1) return const [];
-    return ips.skip(1).map((ip) => 'http://$ip:$port/share').toList(growable: false);
+    return ips
+        .skip(1)
+        .map((ip) => 'http://$ip:$port/share')
+        .toList(growable: false);
   }
 
   List<String> _usableGoIps({
@@ -146,7 +151,10 @@ class ShareUrlResolver {
 
     void add(String? raw) {
       final ip = raw?.trim();
-      if (ip == null || ip.isEmpty || !isPrivateLanIp(ip) || seen.contains(ip)) {
+      if (ip == null ||
+          ip.isEmpty ||
+          !isPrivateLanIp(ip) ||
+          seen.contains(ip)) {
         return;
       }
       seen.add(ip);
@@ -174,10 +182,14 @@ class ShareUrlResolver {
 bool isPrivateLanIp(String ip) {
   if (ip == '127.0.0.1' || ip.startsWith('127.')) return false;
 
+  /// parts。
   final parts = ip.split('.');
   if (parts.length != 4) return false;
 
+  /// a。
   final a = int.tryParse(parts[0]);
+
+  /// b。
   final b = int.tryParse(parts[1]);
   if (a == null || b == null) return false;
 

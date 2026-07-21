@@ -8,20 +8,18 @@ import 'package:instant_share/core/model/app_theme.dart';
 import 'package:instant_share/core/shared/app_theme_cache.dart';
 import 'package:instant_share/core/shared/theme_manager.dart';
 
+/// 应用主题控制器。
 class AppThemeController extends AppController {
-  /// 当前应用主题
   AppTheme _appTheme = const AppTheme();
 
-  /// 是否在初始化前改变过主题模式
   bool _themeChangedBeforeInit = false;
 
-  /// 当前应用主题
   AppTheme get appTheme => _appTheme;
 
-  /// 当前应用主题模式
+  /// 主题模式。
   ThemeMode get themeMode => _appTheme.themeMode;
 
-  /// 当前应用语言
+  /// 当前语言。
   Locale get currentLocale => _appTheme.currentLocale;
 
   /// 支持的 BCP-47 语言列表（见 config.yaml）
@@ -30,6 +28,7 @@ class AppThemeController extends AppController {
   /// 屏幕适配
   ScreenDimens get screenDimens => ScreenDimens.instance;
 
+  /// 初始化控制器。
   @override
   void onInit() {
     super.onInit();
@@ -48,7 +47,6 @@ class AppThemeController extends AppController {
     update();
   }
 
-  /// 加载初始化数据
   Future<void> _loadInitial() async {
     final locale = await AppThemeCache.getLocal();
     final themeMode = await AppThemeCache.getThemeMode();
@@ -59,7 +57,6 @@ class AppThemeController extends AppController {
     }
   }
 
-  /// 应用系统导航栏样式
   void _applySystemOverlayStyle() {
     SystemChrome.setSystemUIOverlayStyle(
       ThemeManager.instance.systemOverlayStyle,

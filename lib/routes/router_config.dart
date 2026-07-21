@@ -4,9 +4,12 @@ import 'package:flutter/services.dart';
 import 'package:fluro_router_generate/fluro_router.dart';
 export 'router.dart';
 
+/// 路由配置。
 @EntranceAnnotation()
 class RouteConfig extends FluroConfig {
   RouteConfig._();
+
+  /// 单例实例。
   static final RouteConfig instance = RouteConfig._();
 
   static void pop<T extends Object?>([T? result]) {
@@ -17,6 +20,7 @@ class RouteConfig extends FluroConfig {
     }
   }
 
+  /// 打开指定页面。
   static void push(
     String path, {
     TransitionType? transition,
@@ -41,14 +45,21 @@ class RouteConfig extends FluroConfig {
     );
   }
 
-  static Future<T?> pushResult<T extends Object?>(String path,
-      {TransitionType? transition}) async {
+  static Future<T?> pushResult<T extends Object?>(
+    String path, {
+    TransitionType? transition,
+  }) async {
     final ctx = CommonContext.contextOrNull;
     if (ctx == null) return null;
-    return CommonContext.router
-        .navigateTo(ctx, path, transition: transition, opaque: false);
+    return CommonContext.router.navigateTo(
+      ctx,
+      path,
+      transition: transition,
+      opaque: false,
+    );
   }
 
+  /// 是否可以返回上一页。
   static bool get canPop =>
       CommonContext.navigatorKey.currentState?.canPop() ?? false;
 }

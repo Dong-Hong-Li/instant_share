@@ -49,11 +49,12 @@ class ShareServerBinaryLocator {
     ];
   }
 
-  /// Debug 构建路径形如 `.../build/windows/x64/runner/Debug`，向上找到含 pubspec 的根。
   static Directory? _guessProjectRoot(Directory exeDir) {
     var current = exeDir;
     for (var i = 0; i < 8; i++) {
-      final pubspec = File('${current.path}${Platform.pathSeparator}pubspec.yaml');
+      final pubspec = File(
+        '${current.path}${Platform.pathSeparator}pubspec.yaml',
+      );
       if (pubspec.existsSync()) return current;
       final parent = current.parent;
       if (parent.path == current.path) break;

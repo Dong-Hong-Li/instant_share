@@ -14,7 +14,6 @@ class PrefsUtil {
   static SharedPreferences? _prefs;
   static Future<void>? _initializing;
 
-  /// 打开本地存储。可多次调用，仅首次真正执行；请在 [runApp] 前 await。
   static Future<void> init() => _initializing ??= _open();
 
   static Future<void> _open() async {
@@ -31,6 +30,7 @@ class PrefsUtil {
     return prefs;
   }
 
+  /// 保存字符串。
   static Future<bool> setString(String key, String value) =>
       _storage.setString(key, value);
 
@@ -40,16 +40,19 @@ class PrefsUtil {
 
   static bool contains(String key) => _storage.containsKey(key);
 
+  /// 保存布尔值。
   static Future<bool> setBool(String key, bool value) =>
       _storage.setBool(key, value);
 
   static bool? getBool(String key) => _storage.getBool(key);
 
+  /// 保存整数。
   static Future<bool> setInt(String key, int value) =>
       _storage.setInt(key, value);
 
   static int? getInt(String key) => _storage.getInt(key);
 
+  /// 保存 JSON 数据。
   static Future<bool> setJson(String key, Map<String, dynamic> jsonMap) =>
       setString(key, jsonEncode(jsonMap));
 

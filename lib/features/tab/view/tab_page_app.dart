@@ -3,18 +3,28 @@ part of 'tab_page.dart';
 class _TabPageAppState extends BaseStatePage<TabPage> with TabPageAppMixin {
   String? _lastShownError;
 
+  /// background颜色。
   @override
   Color? get backgroundColor => Colors.transparent;
 
+  /// appBar。
   @override
   PreferredSizeWidget? appBar() => null;
 
+  /// resizeToAvoidBottomInset。
   @override
   bool get resizeToAvoidBottomInset => false;
 
+  /// build页面。
   @override
   Widget buildPage(BuildContext context, WidgetRef ref) {
     final home = ref.watch(homeProvider);
+    final mutual = ref.watch(mutualShareProvider);
+    home.setRoomFileOfferSync(mutual.offerFiles);
+    mutual.setOnJoinedRoom(home.publishSelectedFilesToRoom);
+    if (home.isSharing) {
+      unawaited(mutual.ensureHostAdminListening());
+    }
     _maybeShowError(context, home);
     syncTab(home);
     maybeHandlePortOccupied(context, home);

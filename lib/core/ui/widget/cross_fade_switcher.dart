@@ -13,8 +13,13 @@ import 'package:flutter/material.dart';
 /// -- `children` 子组件列表
 /// -- `duration` 动画持续时间
 class CrossFadeSwitcher extends StatelessWidget {
+  /// currentIndex。
   final int currentIndex;
+
+  /// children。
   final List<Widget> children;
+
+  /// duration。
   final Duration duration;
 
   const CrossFadeSwitcher({
@@ -24,6 +29,7 @@ class CrossFadeSwitcher extends StatelessWidget {
     this.duration = const Duration(milliseconds: 150),
   });
 
+  /// 构建界面。
   @override
   Widget build(BuildContext context) {
     return Stack(

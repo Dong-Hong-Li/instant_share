@@ -13,6 +13,7 @@ import (
 	"instant_share/server/internal/model"
 )
 
+// handleBatchDownload 处理批量下载。
 func (h *PublicHandler) handleBatchDownload(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		methodNotAllowed(w)
@@ -78,6 +79,7 @@ func (h *PublicHandler) handleBatchDownload(w http.ResponseWriter, r *http.Reque
 	}
 }
 
+// appendFileToZip 追加文件到压缩包。
 func appendFileToZip(zw *zip.Writer, file model.ShareFile, usedNames map[string]int) error {
 	src, err := os.Open(file.Path)
 	if err != nil {
@@ -103,6 +105,7 @@ func appendFileToZip(zw *zip.Writer, file model.ShareFile, usedNames map[string]
 	return err
 }
 
+// uniqueZipEntryName 生成唯一压缩包文件名。
 func uniqueZipEntryName(name string, usedNames map[string]int) string {
 	if count, exists := usedNames[name]; !exists {
 		usedNames[name] = 1

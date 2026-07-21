@@ -54,6 +54,7 @@ abstract class BaseStatePage<T extends StatefulWidget> extends State<T>
     ),
   );
 
+  /// 构建界面。
   @override
   Widget build(BuildContext context) {
     initBaseCommon(context);

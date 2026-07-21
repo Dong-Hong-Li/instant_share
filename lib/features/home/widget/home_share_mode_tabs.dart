@@ -17,9 +17,16 @@ class HomeShareModeTabs extends StatelessWidget {
     required this.onModeChanged,
   });
 
+  /// 颜色配置。
   final ColorValue colorValue;
+
+  /// sharing。
   final bool sharing;
+
+  /// mode。
   final HomeShareMode mode;
+
+  /// onModeChanged。
   final ValueChanged<HomeShareMode> onModeChanged;
 
   static const _slideDuration = Duration(milliseconds: 240);
@@ -30,6 +37,7 @@ class HomeShareModeTabs extends StatelessWidget {
     _TabData(HomeShareMode.file, '分享文件', Icons.insert_drive_file_outlined),
   ];
 
+  /// 构建界面。
   @override
   Widget build(BuildContext context) {
     final tabWidth = w108;
@@ -93,8 +101,13 @@ class HomeShareModeTabs extends StatelessWidget {
 class _TabData {
   const _TabData(this.mode, this.label, this.icon);
 
+  /// mode。
   final HomeShareMode mode;
+
+  /// label。
   final String label;
+
+  /// icon。
   final IconData icon;
 }
 
@@ -108,13 +121,24 @@ class _TabLabel extends StatelessWidget {
     required this.onTap,
   });
 
+  /// 颜色配置。
   final ColorValue colorValue;
+
+  /// sharing。
   final bool sharing;
+
+  /// width。
   final double width;
+
   final _TabData data;
+
+  /// 是否选中。
   final bool selected;
+
+  /// 点击回调。
   final VoidCallback onTap;
 
+  /// 构建界面。
   @override
   Widget build(BuildContext context) {
     final contentColor = selected

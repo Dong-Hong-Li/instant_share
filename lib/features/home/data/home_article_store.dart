@@ -8,6 +8,7 @@ import 'package:instant_share/resource/keys.dart';
 class HomeArticleStore {
   HomeArticleStore._();
 
+  /// 加载数据。
   static Future<HomeArticleStoreSnapshot> load() async {
     final raw = PrefsUtil.getString(AppKeys.homeArticles);
     final sharedIds = _loadSharedArticleIds();
@@ -55,6 +56,7 @@ class HomeArticleStore {
     return {};
   }
 
+  /// 保存数据。
   static Future<void> save({
     required List<HomeArticleItem> articles,
     required Set<String> sharedArticleIds,
@@ -74,12 +76,16 @@ class HomeArticleStore {
   }
 }
 
+/// 首页文章StoreSnapshot。
 class HomeArticleStoreSnapshot {
   const HomeArticleStoreSnapshot({
     required this.articles,
     required this.sharedArticleIds,
   });
 
+  /// 文章列表。
   final List<HomeArticleItem> articles;
+
+  /// shared文章Ids。
   final Set<String> sharedArticleIds;
 }

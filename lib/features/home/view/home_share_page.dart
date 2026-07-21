@@ -21,6 +21,11 @@ import 'package:instant_share/features/home/widget/home_share_mode_tabs.dart';
 import 'package:instant_share/features/home/widget/home_share_page_shell.dart';
 import 'package:instant_share/features/home/widget/home_share_qr_dialog.dart';
 import 'package:instant_share/features/home/widget/home_summary_card.dart';
+import 'package:instant_share/features/mutual_share/provider/mutual_share_provide.dart';
+import 'package:instant_share/features/mutual_share/widget/connect_peer_button.dart';
+import 'package:instant_share/features/mutual_share/widget/connect_peer_dialog.dart';
+import 'package:instant_share/features/mutual_share/widget/pairing_waiting_overlay.dart';
+import 'package:instant_share/features/mutual_share/widget/room_catalog_list.dart';
 import 'package:instant_share/resource/color/color_value.dart';
 import 'package:instant_share/resource/color/home_palette.dart';
 import 'package:instant_share/resource/screen_utils/font_size.dart';
@@ -38,11 +43,20 @@ class HomeSharePage extends StatefulWidget {
     super.key,
     required this.colorValue,
     required this.provider,
+    required this.mutual,
     required this.topInset,
   });
 
+  /// 颜色配置。
   final ColorValue colorValue;
+
+  /// 状态提供者。
   final HomeProvider provider;
+
+  /// mutual。
+  final MutualShareProvider mutual;
+
+  /// topInset。
   final double topInset;
 
   @override
@@ -53,12 +67,87 @@ class HomeSharePage extends StatefulWidget {
   );
 }
 
+class _JoinedRoomBody extends StatelessWidget {
+  const _JoinedRoomBody({
+    required this.colorValue,
+    required this.provider,
+    required this.mutual,
+  });
+
+  /// 颜色配置。
+  final ColorValue colorValue;
+
+  /// 状态提供者。
+  final HomeProvider provider;
+
+  /// mutual。
+  final MutualShareProvider mutual;
+
+  /// 构建界面。
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.fromLTRB(w24, 0, w24, h16),
+      child: Column(
+        children: [
+          Expanded(
+            child: RoomCatalogList(
+              colorValue: colorValue,
+              entries: mutual.catalog,
+            ),
+          ),
+          SizedBox(height: h12),
+          if (!provider.isSharing) ...[
+            Text(
+              '开启本机分享后，所选文件才会出现在房间目录供对方下载',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: f12, color: colorValue.homeHintColor),
+            ),
+            SizedBox(height: h8),
+            FilledButton.tonal(
+              onPressed: provider.isShareBusy || !provider.hasFiles
+                  ? null
+                  : provider.toggleSharing,
+              child: Text(provider.hasFiles ? '开启本机分享并发布' : '请先添加文件'),
+            ),
+            SizedBox(height: h10),
+          ],
+          HomeSummaryCard(
+            colorValue: colorValue,
+            fileCount: provider.fileCount,
+            totalSize: provider.totalFileSize,
+            onAddTap: provider.pickFiles,
+            onClearTap: provider.clearFiles,
+          ),
+          if (provider.hasFiles) ...[
+            SizedBox(height: h10),
+            SizedBox(
+              height: h120,
+              child: HomeFileList(
+                colorValue: colorValue,
+                files: provider.selectedFiles,
+                onRemove: provider.removeFile,
+              ),
+            ),
+          ],
+          SizedBox(height: h8),
+          TextButton(onPressed: mutual.leaveRoom, child: const Text('退出房间')),
+        ],
+      ),
+    );
+  }
+}
+
 class _FileModeBody extends StatelessWidget {
   const _FileModeBody({required this.colorValue, required this.provider});
 
+  /// 颜色配置。
   final ColorValue colorValue;
+
+  /// 状态提供者。
   final HomeProvider provider;
 
+  /// 构建界面。
   @override
   Widget build(BuildContext context) {
     final hasFiles = provider.hasFiles;
@@ -155,22 +244,33 @@ class _FileModeBody extends StatelessWidget {
 class _ArticleShareBody extends StatefulWidget {
   const _ArticleShareBody({required this.colorValue, required this.provider});
 
+  /// 颜色配置。
   final ColorValue colorValue;
+
+  /// 状态提供者。
   final HomeProvider provider;
 
+  /// 创建状态对象。
   @override
   State<_ArticleShareBody> createState() => _ArticleShareBodyState();
 }
 
 class _ArticleShareBodyState extends State<_ArticleShareBody> {
   late final TextEditingController _titleController;
+
   late final TextEditingController _contentController;
+
   late final FocusNode _contentFocusNode;
+
   late final ScrollController _contentScrollController;
 
+  /// 状态提供者。
   HomeProvider get provider => widget.provider;
+
+  /// 颜色配置。
   ColorValue get colorValue => widget.colorValue;
 
+  /// 初始化状态。
   @override
   void initState() {
     super.initState();
@@ -216,6 +316,7 @@ class _ArticleShareBodyState extends State<_ArticleShareBody> {
     );
   }
 
+  /// 释放资源。
   @override
   void dispose() {
     _titleController.dispose();
@@ -225,6 +326,7 @@ class _ArticleShareBodyState extends State<_ArticleShareBody> {
     super.dispose();
   }
 
+  /// 构建界面。
   @override
   Widget build(BuildContext context) {
     final articles = provider.articles;

@@ -49,6 +49,7 @@ func (c Config) Addr() string {
 	return net.JoinHostPort(c.Host, strconv.Itoa(c.Port))
 }
 
+// envOr 读取环境变量或默认值。
 func envOr(key, fallback string) string {
 	if v := os.Getenv(key); v != "" {
 		return v

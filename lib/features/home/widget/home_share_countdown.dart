@@ -17,18 +17,26 @@ class HomeShareCountdown extends StatefulWidget {
     this.totalMinutes = 999,
   });
 
+  /// 颜色配置。
   final ColorValue colorValue;
+
+  /// 是否激活。
   final bool active;
+
+  /// totalMinutes。
   final int totalMinutes;
 
+  /// 创建状态对象。
   @override
   State<HomeShareCountdown> createState() => _HomeShareCountdownState();
 }
 
 class _HomeShareCountdownState extends State<HomeShareCountdown> {
   Timer? _timer;
+
   late int _remainingSeconds;
 
+  /// 初始化状态。
   @override
   void initState() {
     super.initState();
@@ -36,6 +44,7 @@ class _HomeShareCountdownState extends State<HomeShareCountdown> {
     if (widget.active) _start();
   }
 
+  /// didUpdate组件。
   @override
   void didUpdateWidget(covariant HomeShareCountdown oldWidget) {
     super.didUpdateWidget(oldWidget);
@@ -63,12 +72,14 @@ class _HomeShareCountdownState extends State<HomeShareCountdown> {
     _timer = null;
   }
 
+  /// 释放资源。
   @override
   void dispose() {
     _stop();
     super.dispose();
   }
 
+  /// 构建界面。
   @override
   Widget build(BuildContext context) {
     return AnimatedSize(

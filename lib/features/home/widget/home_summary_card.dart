@@ -17,12 +17,22 @@ class HomeSummaryCard extends StatelessWidget {
     required this.onClearTap,
   });
 
+  /// 颜色配置。
   final ColorValue colorValue;
+
+  /// 文件数量。
   final int fileCount;
+
+  /// totalSize。
   final int totalSize;
+
+  /// onAddTap。
   final VoidCallback onAddTap;
+
+  /// onClearTap。
   final VoidCallback onClearTap;
 
+  /// 构建界面。
   @override
   Widget build(BuildContext context) {
     final hasFiles = fileCount > 0;

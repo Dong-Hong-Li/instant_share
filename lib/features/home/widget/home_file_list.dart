@@ -16,10 +16,16 @@ class HomeFileList extends StatelessWidget {
     required this.onRemove,
   });
 
+  /// 颜色配置。
   final ColorValue colorValue;
+
+  /// 文件列表。
   final List<HomeFileItem> files;
+
+  /// 移除回调。
   final ValueChanged<String> onRemove;
 
+  /// 构建界面。
   @override
   Widget build(BuildContext context) {
     return DecoratedBox(
@@ -58,10 +64,16 @@ class _Row extends StatelessWidget {
     required this.onRemove,
   });
 
+  /// 颜色配置。
   final ColorValue colorValue;
+
+  /// 文件。
   final HomeFileItem file;
+
+  /// 移除回调。
   final VoidCallback onRemove;
 
+  /// 构建界面。
   @override
   Widget build(BuildContext context) {
     return Padding(

@@ -15,12 +15,16 @@ import (
 	"github.com/google/uuid"
 )
 
+// maxArticleContentLength。
 const maxArticleContentLength = 2000
 
 var (
+	// ErrShareNotActive。
 	ErrShareNotActive = errors.New("share is not active")
-	ErrShareActive    = errors.New("share is already active")
-	ErrNoFiles        = errors.New("no files to share")
+	// ErrShareActive。
+	ErrShareActive = errors.New("share is already active")
+	// ErrNoFiles。
+	ErrNoFiles = errors.New("no files to share")
 )
 
 // ShareService 管理分享会话状态。
@@ -152,6 +156,7 @@ func (s *ShareService) FileByID(id string) (model.ShareFile, bool) {
 	return model.ShareFile{}, false
 }
 
+// resetLocked。
 func (s *ShareService) resetLocked() {
 	s.status = model.ShareStatus{
 		Active:   false,
@@ -161,6 +166,7 @@ func (s *ShareService) resetLocked() {
 	}
 }
 
+// normalizeFiles。
 func normalizeFiles(files []model.ShareFile) ([]model.ShareFile, error) {
 	if len(files) == 0 {
 		return []model.ShareFile{}, nil
@@ -197,6 +203,7 @@ func normalizeFiles(files []model.ShareFile) ([]model.ShareFile, error) {
 	return result, nil
 }
 
+// normalizeArticles。
 func normalizeArticles(articles []model.ShareArticle) ([]model.ShareArticle, error) {
 	if len(articles) == 0 {
 		return []model.ShareArticle{}, nil
@@ -226,6 +233,7 @@ func normalizeArticles(articles []model.ShareArticle) ([]model.ShareArticle, err
 	return result, nil
 }
 
+// cloneStatus。
 func cloneStatus(status model.ShareStatus) model.ShareStatus {
 	files := make([]model.ShareFile, len(status.Files))
 	copy(files, status.Files)

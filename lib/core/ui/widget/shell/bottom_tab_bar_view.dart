@@ -16,8 +16,13 @@ class BottomTabBarView extends StatelessWidget {
     this.maxContentWidth = 430,
   });
 
+  /// tabs。
   final List<Widget> tabs;
+
+  /// activeIndex。
   final int activeIndex;
+
+  /// maxContentWidth。
   final double maxContentWidth;
 
   /// TSX: `h-[58px]`
@@ -36,10 +41,11 @@ class BottomTabBarView extends StatelessWidget {
   static double overlayHeight(BuildContext context) =>
       barHeight + bottomOffset + MediaQuery.paddingOf(context).bottom;
 
-  /// TSX: `shadow-[0_18px_48px_rgba(18,18,24,.18),inset_0_0_0_1px_rgba(255,255,255,.58)]`
   static const Color _outerShadowColor = Color(0x2E121218);
+
   static const Color _insetRingColor = Color(0x94FFFFFF);
 
+  /// 构建界面。
   @override
   Widget build(BuildContext context) {
     final bottomInset = MediaQuery.paddingOf(context).bottom;
@@ -112,12 +118,22 @@ class BottomTabSlot extends StatelessWidget {
     this.semanticLabel,
   });
 
+  /// icon。
   final IconData icon;
+
+  /// label。
   final String label;
+
+  /// 是否激活。
   final bool active;
+
+  /// 点击回调。
   final VoidCallback onTap;
+
+  /// semanticLabel。
   final String? semanticLabel;
 
+  /// 构建界面。
   @override
   Widget build(BuildContext context) {
     final ColorValue colors = context.themeColor;
