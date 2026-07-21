@@ -94,10 +94,11 @@ func (h *WSAdminHandler) handleShareStop(_ context.Context, conn *websocket.Conn
 		return conn.WriteResponse(websocket.Error("share.stop_ack", packet.RequestID, code, err.Error()))
 	}
 
-	h.broadcastShareStatus()
+	// 先关闭房间（清空 RoomService 目录），再广播状态，避免 viewer 收到已停止分享但仍带旧房间目录的状态。
 	if h.wsRoom != nil {
 		h.wsRoom.CloseRoom()
 	}
+	h.broadcastShareStatus()
 	return conn.WriteResponse(websocket.Success("share.stop_ack", packet.RequestID, status))
 }
 
@@ -189,7 +190,7 @@ func (h *WSAdminHandler) buildPublicStatus() model.PublicShareStatus {
 		catalog, _ = h.room.Catalog()
 	}
 	var mirror []model.SharedEntry
-	if h.mirror != nil {
+	if h.mirror != nil && !isRoomHost(h.room) {
 		mirror = h.mirror.Entries()
 	}
 	return buildPublicShareStatus(status, catalog, mirror, resolveLocalBaseURL(h.room, h.share))

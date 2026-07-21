@@ -93,7 +93,7 @@ func (h *PublicHandler) handleShareStatus(w http.ResponseWriter, r *http.Request
 		catalog, _ = h.room.Catalog()
 	}
 	var mirror []model.SharedEntry
-	if h.mirror != nil {
+	if h.mirror != nil && !isRoomHost(h.room) {
 		mirror = h.mirror.Entries()
 	}
 	data := buildPublicShareStatus(status, catalog, mirror, resolveLocalBaseURL(h.room, h.files))
@@ -114,6 +114,13 @@ func resolveLocalBaseURL(room *service.RoomService, share *service.ShareService)
 		}
 	}
 	return share.HTTPBase()
+}
+
+// isRoomHost 判断本机是否为某个互传房间的 Host（RoomService 已记录 HostBaseURL）。
+// Host 构建公开状态时应始终以 RoomService.Catalog 为准，忽略 Peer 镜像目录——
+// 即便房间目录当前为空（如刚关闭分享后的瞬间），也不应回退到可能过期的镜像数据。
+func isRoomHost(room *service.RoomService) bool {
+	return room != nil && room.HostBaseURL() != ""
 }
 
 // handleShareFileDownload 处理文件下载。
