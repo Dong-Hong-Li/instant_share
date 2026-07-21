@@ -11,17 +11,25 @@
 
 ## 目录结构
 
+分层约定见 [`docs/architecture-rules.md`](docs/architecture-rules.md)。
+
 ```text
 instant_share_server/
-├── cmd/server/
+├── cmd/                 # server / lib 入口 + bootstrap 装配
+├── config/
+├── shared/{consts,errmsg}/
+├── docs/architecture-rules.md
 ├── internal/
-│   ├── app/
-│   ├── config/
-│   ├── handler/          # ws_admin + public
+│   ├── delivery/        # 路由组装、统一 JSON 响应
+│   ├── interfaces/      # system / gateway / share / room / public 控制器
+│   ├── application/     # gateway / share / room 用例 + ports
+│   ├── domain/          # share / room 领域模型
+│   ├── adapter/         # memory 实现
 │   ├── infrastructure/websocket/
-│   ├── model/
-│   ├── service/
-│   └── util/
+│   ├── runtime/
+│   ├── util/
+│   └── web/             # embed 静态资源
+├── web/                 # 前端源码
 ├── go.mod
 └── Makefile
 ```
