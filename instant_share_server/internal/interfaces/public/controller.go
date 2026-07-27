@@ -3,6 +3,7 @@ package public
 
 import (
 	"fmt"
+	"io"
 	"io/fs"
 	"net/http"
 	"net/url"
@@ -11,9 +12,9 @@ import (
 
 	roomsvc "instant_share/server/internal/application/room/service"
 	sharesvc "instant_share/server/internal/application/share/service"
+	"instant_share/server/internal/delivery/res"
 	"instant_share/server/internal/domain/room"
 	"instant_share/server/internal/domain/share"
-	"instant_share/server/internal/delivery/res"
 	webassets "instant_share/server/internal/web"
 )
 
@@ -172,7 +173,20 @@ func (c *Controller) handleShareFileDownload(w http.ResponseWriter, r *http.Requ
 
 	w.Header().Set("Content-Disposition", contentDispositionAttachment(file.Name))
 	w.Header().Set("Content-Type", "application/octet-stream")
-	http.ServeContent(w, r, file.Name, info.ModTime(), f)
+	// 不直接传 *os.File：避免 macOS sendfile 与 sniffLen(512) 在 LAN 上乱序/截断。
+	http.ServeContent(w, r, file.Name, info.ModTime(), asHTTPContent(f))
+}
+
+// noSendfileSeeker 包装 ReadSeeker，刻意不暴露 *os.File。
+// net/http 对 *os.File 会走 TCPConn.ReadFrom → sendfile；在 macOS 非 loopback 上
+// 可能先发出文件体再发出 HTTP 头，或在约 512 字节后断开（golang/go#79706）。
+type noSendfileSeeker struct {
+	io.ReadSeeker
+}
+
+// asHTTPContent 将本地文件包装为仅 ReadSeeker，供 ServeContent 使用。
+func asHTTPContent(f *os.File) io.ReadSeeker {
+	return noSendfileSeeker{f}
 }
 
 // contentDispositionAttachment 生成 attachment 头，兼容非 ASCII 文件名。

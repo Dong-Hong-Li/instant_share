@@ -13,6 +13,21 @@ import (
 	"instant_share/server/config"
 )
 
+// noReadFromConn 隐藏底层 Conn 的 ReadFrom，强制 net/http 走普通 Write 循环，
+// 避免 macOS sendfile 与 ResponseWriter 在非 loopback 上乱序（golang/go#79706）。
+type noReadFromConn struct{ net.Conn }
+
+// noReadFromListener 包装 Listener，Accept 时返回 noReadFromConn。
+type noReadFromListener struct{ net.Listener }
+
+func (l noReadFromListener) Accept() (net.Conn, error) {
+	c, err := l.Listener.Accept()
+	if err != nil {
+		return nil, err
+	}
+	return noReadFromConn{Conn: c}, nil
+}
+
 // Runtime 封装一个正在运行的 HTTP/WebSocket 服务实例。
 type Runtime struct {
 	mu       sync.Mutex
@@ -31,12 +46,14 @@ type Runtime struct {
  * @return {error} 监听或 Bootstrap 失败
  */
 func Start(cfg config.Config) (*Runtime, error) {
-	ln, err := net.Listen("tcp", cfg.Addr())
+	rawLn, err := net.Listen("tcp", cfg.Addr())
 	if err != nil {
 		return nil, err
 	}
+	// 禁用 sendfile 快路径，保证局域网下载完整（Mac 端分享常见场景）。
+	ln := net.Listener(noReadFromListener{Listener: rawLn})
 
-	cfg.Port = ln.Addr().(*net.TCPAddr).Port
+	cfg.Port = rawLn.Addr().(*net.TCPAddr).Port
 
 	handler, deps, cleanup, err := cmd.Bootstrap(cfg)
 	if err != nil {
